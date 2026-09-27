@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from datetime import datetime
+import asyncio
+from collections.abc import Callable, Mapping, Sequence
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from fundarb.core.models import (
     Candle,
@@ -16,6 +18,8 @@ from fundarb.core.models import (
     PerpPosition,
 )
 from fundarb.exchanges.base import ExchangeAdapter
+from fundarb.marketdata.history import HistorySync
+from fundarb.marketdata.store import ParquetStore
 
 HOUR_MS = 3_600_000
 
@@ -52,6 +56,7 @@ class FakeAdapter(ExchangeAdapter):
         funding_rate: Callable[[str, int], float] | None = None,
         price: Callable[[str, int], float] | None = None,
         fail_bases: frozenset[str] = frozenset(),
+        volume: float = 1000.0,
     ) -> None:
         self.rules = dict(rules)
         self.start_ms = start_ms
@@ -60,6 +65,7 @@ class FakeAdapter(ExchangeAdapter):
         self.funding_rate = funding_rate or (lambda _base, _ts: 0.0001)
         self.price = price or (lambda _base, _ts: 100.0)
         self.fail_bases = fail_bases
+        self.volume = volume
         self.calls: list[tuple[str, str, int, int, int]] = []
 
     async def connect(self) -> None:
@@ -106,7 +112,7 @@ class FakeAdapter(ExchangeAdapter):
             if not since_ms <= ts <= until_ms:
                 continue
             px = self.price(base, ts)
-            rows.append(Candle(ts_ms=ts, open=px, high=px, low=px, close=px, volume=1000.0))
+            rows.append(Candle(ts_ms=ts, open=px, high=px, low=px, close=px, volume=self.volume))
         return rows[:limit]
 
     async def fetch_funding_info(self, rules: InstrumentRules) -> FundingInfo:
@@ -138,3 +144,31 @@ class FakeAdapter(ExchangeAdapter):
 
 def ms(dt: datetime) -> int:
     return int(dt.timestamp() * 1000)
+
+
+def synthetic_store(
+    root: Path,
+    start: datetime,
+    days: int,
+    bases: Sequence[str] = ("BTC",),
+    *,
+    funding_rate: Callable[[str, int], float] | None = None,
+    price: Callable[[str, int], float] | None = None,
+    volume: float = 100_000.0,
+) -> ParquetStore:
+    """Build a Parquet store from the fake exchange: hourly candles and 8h fundings."""
+    rules = {b: make_rules(b) for b in bases}
+    end = start + timedelta(days=days)
+    adapter = FakeAdapter(
+        rules,
+        start_ms=ms(start),
+        end_ms=ms(end),
+        funding_rate=funding_rate,
+        price=price,
+        volume=volume,
+    )
+    store = ParquetStore(root, "fake")
+    sync = HistorySync(adapter, store, start=start, now_ms=lambda: ms(end))
+    result = asyncio.run(sync.sync_all())
+    assert result.ok, result.errors
+    return store
