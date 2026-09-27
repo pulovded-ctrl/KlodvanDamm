@@ -38,7 +38,9 @@ backtest:
   walk_forward:
     train_months: 6
     test_months: 3
-    grid:
-      entry_threshold_apr: [0.05, 0.08, 0.12]
-      exit_threshold_apr: [0.02, 0.04]
-      hold_horizon_periods: [30, 90, 180]
+    grid:                         # any of: entry_threshold_apr, exit_threshold_apr, rotation_margin_apr,
+      entry_threshold_apr: [0.08, 0.12, 0.20]   # confirm_periods, funding_ewma_span, hold_horizon_periods,
+      exit_threshold_apr: [0.02, 0.04]          # max_asset_pct, max_positions
+      hold_horizon_periods: [9, 30, 90]
+      funding_ewma_span: [6, 12, 24]
+      confirm_periods: [3, 6]

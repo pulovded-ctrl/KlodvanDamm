@@ -67,9 +67,11 @@ def test_walk_forward_end_to_end(
     dataset = build_dataset(ParquetStore(tmp_path, "fake"))
     small_grid = params.backtest.walk_forward.model_copy(
         update={
-            "grid": params.backtest.walk_forward.grid.model_copy(
-                update={"entry_threshold_apr": [0.08, 0.2], "exit_threshold_apr": [0.04]}
-            )
+            "grid": {
+                "entry_threshold_apr": [0.08, 0.2],
+                "exit_threshold_apr": [0.04],
+                "hold_horizon_periods": [9, 30, 90],
+            }
         }
     )
     settings = params.backtest.model_copy(update={"walk_forward": small_grid})

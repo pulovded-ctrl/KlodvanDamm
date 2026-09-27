@@ -180,7 +180,12 @@ def run_walk_forward(
         )
         for f in make_folds(index, wf.train_months, wf.test_months)
     ]
-    candidates = grid_candidates(wf.grid.model_dump())
+    candidates = [
+        c
+        for c in grid_candidates(wf.grid)
+        if float(c.get("exit_threshold_apr", params.exit_threshold_apr))  # type: ignore[arg-type]
+        < float(c.get("entry_threshold_apr", params.entry_threshold_apr))  # type: ignore[arg-type]
+    ]
     out = WalkForwardResult(grid_size=len(candidates))
     if not folds:
         out.skipped_reason = (

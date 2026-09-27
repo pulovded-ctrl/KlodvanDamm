@@ -153,9 +153,11 @@ def test_pair_walk_forward_uses_pair_engine(
         update={
             "walk_forward": params.backtest.walk_forward.model_copy(
                 update={
-                    "grid": params.backtest.walk_forward.grid.model_copy(
-                        update={"entry_threshold_apr": [0.08], "exit_threshold_apr": [0.04]}
-                    )
+                    "grid": {
+                        "entry_threshold_apr": [0.08],
+                        "exit_threshold_apr": [0.04],
+                        "hold_horizon_periods": [9, 30, 90],
+                    }
                 }
             )
         }

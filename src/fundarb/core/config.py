@@ -116,16 +116,35 @@ class ExchangeEvent(_Strict):
         return value
 
 
-class WalkForwardGrid(_Strict):
-    entry_threshold_apr: list[float] = Field(min_length=1)
-    exit_threshold_apr: list[float] = Field(min_length=1)
-    hold_horizon_periods: list[int] = Field(min_length=1)
+GRID_PARAMS = frozenset(
+    {
+        "entry_threshold_apr",
+        "exit_threshold_apr",
+        "rotation_margin_apr",
+        "confirm_periods",
+        "funding_ewma_span",
+        "hold_horizon_periods",
+        "max_asset_pct",
+        "max_positions",
+    }
+)
 
 
 class WalkForwardSettings(_Strict):
     train_months: int = Field(default=6, ge=1)
     test_months: int = Field(default=3, ge=1)
-    grid: WalkForwardGrid
+    grid: dict[str, list[float]]  # strategy parameter -> candidate values
+
+    @field_validator("grid")
+    @classmethod
+    def _known_params(cls, value: dict[str, list[float]]) -> dict[str, list[float]]:
+        unknown = sorted(set(value) - GRID_PARAMS)
+        if unknown:
+            raise ValueError(f"grid parameters not tunable: {unknown}")
+        empty = [k for k, v in value.items() if not v]
+        if empty:
+            raise ValueError(f"grid parameters without values: {empty}")
+        return value
 
 
 class BacktestSettings(_Strict):
@@ -168,7 +187,8 @@ class StrategyParams(_Strict):
     backtest: BacktestSettings
 
     def with_overrides(self, **overrides: object) -> StrategyParams:
-        return self.model_copy(update=overrides)
+        """A validated copy: types are coerced (a grid may hand an int field a float)."""
+        return StrategyParams.model_validate({**self.model_dump(), **overrides})
 
 
 def _read_yaml(path: Path) -> dict[str, object]:
