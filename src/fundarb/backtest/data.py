@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from fundarb.core.models import InstrumentRules
+from fundarb.core.models import HOURS_PER_YEAR, InstrumentRules
 from fundarb.marketdata.history import TIMEFRAME_MS
 from fundarb.marketdata.store import ParquetStore
 
@@ -222,3 +222,35 @@ def coverage_summary(coverage: DataCoverage) -> Mapping[str, object]:
         "last_ts": max((c.last_ts for c in usable if c.last_ts), default=None),
         "warnings": list(coverage.warnings),
     }
+
+
+@dataclass(frozen=True, slots=True)
+class FundingEnv:
+    base: str
+    settlements: int
+    mean_apr: float
+    median_apr: float
+    share_above_15: float
+    share_above_50: float
+    share_negative: float
+
+
+def funding_environment(dataset: BacktestDataset) -> list[FundingEnv]:
+    """What the funding market looked like per coin: the context every result must be read in."""
+    out: list[FundingEnv] = []
+    for base, coin in sorted(dataset.coins.items()):
+        if len(coin.funding_rates) == 0:
+            continue
+        apr = coin.funding_rates * (HOURS_PER_YEAR / np.maximum(coin.funding_gap_hours, 1e-9))
+        out.append(
+            FundingEnv(
+                base=base,
+                settlements=len(apr),
+                mean_apr=float(apr.mean()),
+                median_apr=float(np.median(apr)),
+                share_above_15=float(np.mean(apr > 0.15)),
+                share_above_50=float(np.mean(apr > 0.50)),
+                share_negative=float(np.mean(apr < 0.0)),
+            )
+        )
+    return out

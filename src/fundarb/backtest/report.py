@@ -13,7 +13,7 @@ from pathlib import Path
 import matplotlib
 import pandas as pd
 
-from fundarb.backtest.data import DataCoverage, coverage_summary
+from fundarb.backtest.data import DataCoverage, FundingEnv, coverage_summary
 from fundarb.backtest.engine import BacktestResult
 from fundarb.backtest.metrics import Metrics
 from fundarb.backtest.walkforward import WalkForwardResult
@@ -52,6 +52,7 @@ class ReportInputs:
     settings: BacktestSettings
     generated_at: datetime | None = None
     exchange_note: str = ""
+    funding_env: list[FundingEnv] | None = None
 
 
 def pct(value: float, digits: int = 1) -> str:
@@ -82,9 +83,10 @@ def metrics_table(m: Metrics) -> str:
         ("Время в рынке", pct(m.time_in_market)),
         ("Оборот в год (к капиталу)", f"{m.turnover_annual:.1f}x"),
         ("Получено фандинга", usd(m.funding_usd)),
-        ("Результат по базису (спот минус перп)", usd(m.basis_pnl_usd)),
-        ("Комиссии, спред и проскальзывание", usd(m.fees_usd)),
-        ("Доля издержек в валовом доходе", pct(m.fees_share_of_gross)),
+        ("Результат по базису (спот минус перп, по средним ценам)", usd(m.basis_pnl_usd)),
+        ("Комиссии биржи", usd(m.fees_usd)),
+        ("Спред и проскальзывание", usd(m.spread_slippage_usd)),
+        ("Доля всех издержек в валовом доходе", pct(m.fees_share_of_gross)),
         (
             "Стоп-краны, пополнения маржи, сокращения",
             f"{m.hard_stops}, {m.margin_topups}, {m.reductions}",
@@ -182,6 +184,35 @@ def _assumptions(inp: ReportInputs) -> str:
     )
 
 
+def _funding_env_section(env: list[FundingEnv] | None) -> str:
+    if not env:
+        return "Нет данных о фандинге."
+    total = sum(e.settlements for e in env)
+    if total == 0:
+        return "Нет данных о фандинге."
+    above15 = sum(e.share_above_15 * e.settlements for e in env) / total
+    above50 = sum(e.share_above_50 * e.settlements for e in env) / total
+    negative = sum(e.share_negative * e.settlements for e in env) / total
+    lines = [
+        f"По всем монетам и выплатам: фандинг выше 15% годовых был в {pct(above15)} выплат, "
+        f"выше 50% в {pct(above50)}, отрицательный в {pct(negative)}. "
+        "Стратегия зарабатывает только на выплатах выше порога входа после издержек, "
+        "остальное время она ждёт в деньгах.",
+        "",
+        "| Монета | Выплат | Средний фандинг, годовых | Медиана | Доля выше 15% "
+        "| Доля отрицательных |",
+        "|---|---|---|---|---|---|",
+    ]
+    for e in sorted(env, key=lambda x: x.mean_apr, reverse=True)[:15]:
+        lines.append(
+            f"| {e.base} | {e.settlements} | {pct(e.mean_apr)} | {pct(e.median_apr)} | "
+            f"{pct(e.share_above_15)} | {pct(e.share_negative)} |"
+        )
+    if len(env) > 15:
+        lines.append(f"| ... ещё {len(env) - 15} монет | | | | | |")
+    return "\n".join(lines)
+
+
 def _oos_section(wf: WalkForwardResult | None) -> str:
     if wf is None:
         return "Walk-forward отключён флагом."
@@ -241,6 +272,10 @@ def render_markdown(inp: ReportInputs) -> str:
         "### По монетам (весь период, параметры по умолчанию)",
         "",
         _per_coin_table(inp.default_result),
+        "",
+        "## Среда фандинга: сколько вообще платили в этот период",
+        "",
+        _funding_env_section(inp.funding_env),
         "",
         "## Покрытие данных",
         "",

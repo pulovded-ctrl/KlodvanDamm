@@ -131,6 +131,7 @@ class StrategyParams(_Strict):
     min_notional_usd: float = Field(ge=0)
     max_leverage_perp: float = Field(gt=0)
     min_liq_distance_pct: float = Field(ge=0)
+    cash_reserve_pct: float = Field(default=15.0, ge=0, le=90)  # kept free for margin top-ups
     stale_data_sec: float = Field(gt=0)
     daily_dd_hard_stop_pct: float = Field(gt=0, le=100)
     reconcile_interval_sec: int = Field(ge=1)

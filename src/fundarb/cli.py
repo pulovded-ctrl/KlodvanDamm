@@ -123,7 +123,7 @@ def backtest(
     bases: Annotated[list[str] | None, typer.Option("--base", help="Только эти монеты")] = None,
 ) -> None:
     """Прогнать стратегию на скачанной истории и записать отчёт в reports/."""
-    from fundarb.backtest.data import build_dataset
+    from fundarb.backtest.data import build_dataset, funding_environment
     from fundarb.backtest.engine import BacktestEngine
     from fundarb.backtest.metrics import compute_metrics
     from fundarb.backtest.report import ReportInputs, write_report
@@ -174,6 +174,7 @@ def backtest(
             fees=settings.fees,
             settings=params.backtest,
             exchange_note=settings.exchange.note,
+            funding_env=funding_environment(dataset),
         ),
         settings.reports_dir,
     )

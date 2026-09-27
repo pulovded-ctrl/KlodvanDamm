@@ -4,7 +4,7 @@ exit_threshold_apr: 0.04
 rotation_margin_apr: 0.05
 confirm_periods: 3
 funding_ewma_span: 6
-hold_horizon_periods: 9
+hold_horizon_periods: 90   # walk-forward chose 90 in every fold; 9 made costs eat 46% apr
 min_24h_volume_usd: 20000000
 max_spread_bps: 5
 max_order_pct_of_1min_volume: 5
@@ -16,6 +16,7 @@ max_positions: 8
 min_notional_usd: 100
 max_leverage_perp: 2.0
 min_liq_distance_pct: 40
+cash_reserve_pct: 15          # share of equity never spent on entries, reserved for margin top-ups
 stale_data_sec: 5
 daily_dd_hard_stop_pct: 3
 reconcile_interval_sec: 60
@@ -26,7 +27,7 @@ stablecoin_depeg_pct: 1
 event_close_before_hours: 24
 rebalance_interval_hours: 8   # portfolio re-evaluation cadence (one funding period on 8h symbols)
 
-blacklist: []                 # base coins never traded, e.g. ["LUNA"]
+blacklist: ["USDC", "FDUSD", "USD1", "TUSD", "DAI", "USDE", "BUSD"]  # stablecoins: no carry to harvest
 exchange_events: []           # - {base: "XYZ", kind: "delisting", at: "2026-01-01T00:00:00Z"}
 
 backtest:
@@ -38,6 +39,6 @@ backtest:
     train_months: 6
     test_months: 3
     grid:
-      entry_threshold_apr: [0.08, 0.12, 0.20]
-      exit_threshold_apr: [0.02, 0.04, 0.06]
-      hold_horizon_periods: [9, 30, 90]
+      entry_threshold_apr: [0.05, 0.08, 0.12]
+      exit_threshold_apr: [0.02, 0.04]
+      hold_horizon_periods: [30, 90, 180]

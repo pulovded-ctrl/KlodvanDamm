@@ -27,7 +27,8 @@ def max_entry_notional(
         cap_slip = params.max_hedge_slippage_bps / cost_model.slippage_coef_bps * min_minute_volume
     else:
         cap_slip = float("inf")
-    cap_cash = max(free_cash_usd, 0.0) / capital_per_notional(params)
+    reserve = equity_usd * params.cash_reserve_pct / 100.0
+    cap_cash = max(free_cash_usd - reserve, 0.0) / capital_per_notional(params)
     notional = min(cap_asset, cap_depth, cap_slip, cap_cash)
     if notional < params.min_notional_usd or notional <= 0:
         return 0.0

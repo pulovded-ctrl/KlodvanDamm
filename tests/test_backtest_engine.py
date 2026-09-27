@@ -41,7 +41,8 @@ def test_constant_positive_funding_is_harvested(
     assert trade.reason == "end_of_backtest"
     assert trade.funding_usd > 0
     assert trade.fees_usd > 0
-    assert trade.basis_pnl_usd < 0  # spread and slippage paid, price flat
+    assert trade.spread_slippage_usd > 0
+    assert trade.basis_pnl_usd == pytest.approx(0.0, abs=1e-9)  # price flat: basis at mids is 0
     assert trade.net_pnl_usd > 0
     # entry after 6 fundings of history plus 3 confirmations: bar 56
     assert trade.opened_at == dataset.ts(56)

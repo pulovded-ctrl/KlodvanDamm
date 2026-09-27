@@ -50,7 +50,7 @@ def test_grid_candidates_and_score() -> None:
     assert cands[0] == {"a": 1, "b": 0.1}
     from fundarb.backtest.metrics import Metrics
 
-    m0 = Metrics(None, None, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    m0 = Metrics(None, None, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     assert score(m0) == (float("-inf"), float("-inf"))
 
 

@@ -39,12 +39,15 @@ LIQ_TARGET_BUFFER_PCT = 10.0  # restore liquidation distance to min + this buffe
 class OpenPosition:
     base: str
     qty: float
-    spot_entry: float
+    spot_entry: float  # fill price, spread and slippage included
     perp_entry: float
     margin_usd: float
     opened_idx: int
+    spot_entry_mid: float = 0.0  # mid price at entry, for a clean basis P&L
+    perp_entry_mid: float = 0.0
     funding_received: float = 0.0
     fees_paid: float = 0.0
+    friction_paid: float = 0.0  # spread + slippage paid at entry
     last_spot: float = 0.0
     last_perp: float = 0.0
 
@@ -63,14 +66,15 @@ class TradeRecord:
     qty: float
     notional_entry_usd: float
     funding_usd: float
-    basis_pnl_usd: float
-    fees_usd: float
+    basis_pnl_usd: float  # at mid prices: spot P&L plus perp P&L
+    fees_usd: float  # exchange fees
+    spread_slippage_usd: float  # half spreads and slippage on all four fills
     reason: str
     partial: bool
 
     @property
     def net_pnl_usd(self) -> float:
-        return self.funding_usd + self.basis_pnl_usd - self.fees_usd
+        return self.funding_usd + self.basis_pnl_usd - self.fees_usd - self.spread_slippage_usd
 
     @property
     def hours_held(self) -> float:
@@ -100,6 +104,10 @@ class BacktestResult:
     @property
     def fees_total(self) -> float:
         return sum(t.fees_usd for t in self.trades)
+
+    @property
+    def friction_total(self) -> float:
+        return sum(t.spread_slippage_usd for t in self.trades)
 
 
 class BacktestEngine:
@@ -193,7 +201,7 @@ class BacktestEngine:
             if hour % rebalance_hours == 0 and i >= halted_until:
                 snap = self._snapshot(i, cash, equity, positions)
                 actions = strategy.evaluate(snap)
-                cash = self._execute(actions, i, cash, positions, trades, result)
+                cash = self._execute(actions, i, cash, equity, positions, trades, result)
                 equity = self._equity(cash, positions)
             if positions:
                 result.bars_in_market += 1
@@ -271,6 +279,7 @@ class BacktestEngine:
         actions: list[TargetAction],
         i: int,
         cash: float,
+        equity: float,
         positions: dict[str, OpenPosition],
         trades: list[TradeRecord],
         result: BacktestResult,
@@ -279,11 +288,12 @@ class BacktestEngine:
             if action.kind is ActionKind.EXIT and action.base in positions:
                 pos = positions.pop(action.base)
                 cash += self._close(pos, pos.last_spot, pos.last_perp, i, action.reason, trades)
+        reserve = equity * self.params.cash_reserve_pct / 100.0
         for action in actions:
             if action.kind is not ActionKind.ENTER or action.base in positions:
                 continue
             coin = self.data.coins[action.base]
-            opened, cash = self._open(coin, action.notional_usd, i, cash)
+            opened, cash = self._open(coin, action.notional_usd, i, cash, reserve)
             if opened is None:
                 result.rejected_entries += 1
             else:
@@ -291,7 +301,7 @@ class BacktestEngine:
         return cash
 
     def _open(
-        self, coin: CoinSeries, notional_usd: float, i: int, cash: float
+        self, coin: CoinSeries, notional_usd: float, i: int, cash: float, reserve_usd: float
     ) -> tuple[OpenPosition | None, float]:
         spot_px, perp_px = float(coin.spot_close[i]), float(coin.perp_close[i])
         spot_fill = spot_px * (1.0 + self._half_spread)  # first leg: spot, maker, pays half spread
@@ -300,7 +310,7 @@ class BacktestEngine:
         perp_fill = perp_px * (1.0 - self._half_spread - slip)  # second leg: perp short, taker
         fee_frac = (self.fees.spot_maker_bps + self.fees.perp_taker_bps) * BPS
         unit_cost = capital_per_notional(self.params) + fee_frac + self._half_spread
-        affordable = max(cash, 0.0) / unit_cost
+        affordable = max(cash - reserve_usd, 0.0) / unit_cost
         notional = min(notional_usd, affordable)
         if notional < self.params.min_notional_usd:
             return None, cash
@@ -322,7 +332,10 @@ class BacktestEngine:
             perp_entry=perp_fill,
             margin_usd=margin,
             opened_idx=i,
+            spot_entry_mid=spot_px,
+            perp_entry_mid=perp_px,
             fees_paid=fee_spot + fee_perp,
+            friction_paid=qty * (spot_fill - spot_px) + qty * (perp_px - perp_fill),
             last_spot=spot_px,
             last_perp=perp_px,
         )
@@ -349,12 +362,16 @@ class BacktestEngine:
         spot_fill = spot_px * (1.0 - self._half_spread - slip)  # second leg: sell spot, taker
         fee_perp = close_qty * perp_fill * self.fees.perp_maker_bps * BPS
         fee_spot = close_qty * spot_fill * self.fees.spot_taker_bps * BPS
-        perp_pnl = (pos.perp_entry - perp_fill) * close_qty
-        spot_pnl = (spot_fill - pos.spot_entry) * close_qty
+        perp_pnl = (pos.perp_entry - perp_fill) * close_qty  # on fills: what cash actually gets
+        exit_friction = close_qty * (perp_fill - perp_px) + close_qty * (spot_px - spot_fill)
         share = close_qty / pos.qty
         margin_released = pos.margin_usd * share if (release_margin or not partial) else 0.0
         entry_fees = pos.fees_paid * share
+        entry_friction = pos.friction_paid * share
         funding = pos.funding_received * share
+        basis_mid = (pos.perp_entry_mid - perp_px) * close_qty + (
+            spot_px - pos.spot_entry_mid
+        ) * close_qty
         trades.append(
             TradeRecord(
                 base=pos.base,
@@ -363,8 +380,9 @@ class BacktestEngine:
                 qty=close_qty,
                 notional_entry_usd=close_qty * pos.spot_entry,
                 funding_usd=funding,
-                basis_pnl_usd=perp_pnl + spot_pnl,
+                basis_pnl_usd=basis_mid,
                 fees_usd=entry_fees + fee_perp + fee_spot,
+                spread_slippage_usd=entry_friction + exit_friction,
                 reason=reason,
                 partial=partial,
             )
@@ -373,6 +391,7 @@ class BacktestEngine:
         pos.qty -= close_qty
         pos.margin_usd -= margin_released
         pos.fees_paid -= entry_fees
+        pos.friction_paid -= entry_friction
         pos.funding_received -= funding
         return cash_back
 

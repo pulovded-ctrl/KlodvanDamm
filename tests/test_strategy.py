@@ -112,7 +112,8 @@ def test_round_trip_cost_breakdown(params: StrategyParams) -> None:
     assert bd.slippage_frac == pytest.approx(2e-4)  # 1 bps on each taker leg
     assert bd.total_frac == pytest.approx(39.5e-4)
     apr = cm.cost_apr(bd.total_frac, 8.0, params.hold_horizon_periods)
-    assert apr == pytest.approx(39.5e-4 * 8760 / 72)
+    assert apr == pytest.approx(39.5e-4 * 8760 / (8 * params.hold_horizon_periods))
+    assert cm.cost_apr(bd.total_frac, 8.0, 9) == pytest.approx(39.5e-4 * 8760 / 72)
 
 
 def test_live_spread_used_when_no_assumption() -> None:
@@ -138,9 +139,13 @@ def test_sizing_takes_smallest_cap(params: StrategyParams) -> None:
     assert n == pytest.approx(500.0)
     n = max_entry_notional(10_000.0, 10_000.0, make_inst(minute_vol=1e9), params, cm)
     assert n == pytest.approx(1000.0)  # asset cap 10%
-    n = max_entry_notional(10_000.0, 300.0, make_inst(minute_vol=1e9), params, cm)
+    no_reserve = params.with_overrides(cash_reserve_pct=0.0)
+    n = max_entry_notional(10_000.0, 300.0, make_inst(minute_vol=1e9), no_reserve, cm)
     assert n == pytest.approx(300.0 / 1.5)  # cash cap: notional + margin at 2x
-    assert max_entry_notional(10_000.0, 50.0, make_inst(minute_vol=1e9), params, cm) == 0.0
+    assert max_entry_notional(10_000.0, 50.0, make_inst(minute_vol=1e9), no_reserve, cm) == 0.0
+    # 15% of equity stays in reserve for margin top-ups
+    n = max_entry_notional(10_000.0, 1_800.0, make_inst(minute_vol=1e9), params, cm)
+    assert n == pytest.approx((1_800.0 - 1_500.0) / 1.5)
 
 
 # --- signal ----------------------------------------------------------------------------------
@@ -261,7 +266,7 @@ def test_entries_limited_by_cash_and_slots(params: StrategyParams) -> None:
         acts = strat.evaluate(snapshot([make_inst(b, seq=seq) for b in ("AAA", "BBB", "CCC")]))
     assert len(acts) == 2  # slots
     assert len(insts) == 3
-    strat2 = FundingArbStrategy(p, cost_model())
+    strat2 = FundingArbStrategy(p.with_overrides(cash_reserve_pct=0.0), cost_model())
     for seq in (6, 7, 8):
         acts = strat2.evaluate(
             snapshot([make_inst(b, seq=seq) for b in ("AAA", "BBB", "CCC")], cash=1200.0)

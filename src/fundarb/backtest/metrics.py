@@ -32,7 +32,8 @@ class Metrics:
     funding_usd: float
     basis_pnl_usd: float
     fees_usd: float
-    fees_share_of_gross: float
+    spread_slippage_usd: float
+    fees_share_of_gross: float  # (fees + spread + slippage) / (funding + basis)
     hard_stops: int
     margin_topups: int
     reductions: int
@@ -75,7 +76,7 @@ def compute_metrics(result: BacktestResult, trades: list[TradeRecord] | None = N
     if eq.empty:
         return Metrics(
             None, None, 0.0, initial, initial, 0.0, 0.0, 0.0, 0.0, 0, 0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, result.hard_stops, result.margin_topups, result.reductions,
+            0.0, 0.0, 0.0, 0.0, 0.0, result.hard_stops, result.margin_topups, result.reductions,
             result.rejected_entries,
         )  # fmt: skip
     start = eq.index[0].to_pydatetime()
@@ -92,8 +93,9 @@ def compute_metrics(result: BacktestResult, trades: list[TradeRecord] | None = N
     funding = sum(t.funding_usd for t in trades)
     basis = sum(t.basis_pnl_usd for t in trades)
     fees = sum(t.fees_usd for t in trades)
+    friction = sum(t.spread_slippage_usd for t in trades)
     gross = funding + basis
-    fees_share = fees / gross if gross > 0 else float("nan")
+    fees_share = (fees + friction) / gross if gross > 0 else float("nan")
     return Metrics(
         start=start,
         end=end,
@@ -113,6 +115,7 @@ def compute_metrics(result: BacktestResult, trades: list[TradeRecord] | None = N
         funding_usd=funding,
         basis_pnl_usd=basis,
         fees_usd=fees,
+        spread_slippage_usd=friction,
         fees_share_of_gross=fees_share,
         hard_stops=result.hard_stops,
         margin_topups=result.margin_topups,
