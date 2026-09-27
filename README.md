@@ -49,6 +49,19 @@ make install
 Первый запуск `make backtest` качает историю за период с `history_start` из
 `config/settings.yaml` и может занять десятки минут. Повторные запуски быстрые.
 
+Полезные варианты команды бэктеста:
+
+```bash
+uv run fundarb backtest --start 2024-06-01 --end 2025-06-01   # только этот период
+uv run fundarb backtest --base BTC --base ETH                  # только эти монеты
+uv run fundarb backtest --no-walk-forward                      # быстрее, без подбора параметров
+uv run fundarb backtest --jobs 2                               # ограничить число процессов
+uv run fundarb data sync --max-symbols 20                      # качать меньше монет
+```
+
+Если команда пишет «Не удалось подключиться к бирже», значит с этого компьютера
+нет доступа к `api.bybit.com`: проверьте интернет, VPN или сетевые ограничения.
+
 ## Как читать отчёт
 
 Откройте `reports/latest.md`. Главные строки:

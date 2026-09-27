@@ -78,7 +78,12 @@ class CcxtAdapter(ExchangeAdapter):
         self._ex = cls(options)
         if self._testnet:
             self._ex.set_sandbox_mode(True)
-        await self._ex.load_markets()
+        try:
+            await self._ex.load_markets()
+        except Exception:
+            await self._ex.close()  # release the HTTP session even when the exchange is unreachable
+            self._ex = None
+            raise
 
     async def close(self) -> None:
         if self._ex is not None:
