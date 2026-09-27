@@ -1,70 +1,71 @@
-# План
+# Plan
 
-## Этап 0: каркас, данные, бэктест
+## Phase 0: skeleton, data, backtest
 
-- [x] Структура проекта, `pyproject.toml`, `Makefile`, конфиги, `.env.example`, `.gitignore`
-- [x] Ядро: модели данных, округление по правилам биржи, загрузка конфигов, JSON-логи
-- [x] `ExchangeAdapter` и реализация на ccxt для REST-истории
-- [x] Загрузчик истории фандинга и часовых свечей Bybit в Parquet с докачкой
-- [x] Стратегия: прогноз фандинга, издержки, `expected_net_apr`, размер позиции, вход/выход/ротация
-- [x] Бэктестер: событийный, комиссии, спред, проскальзывание, фандинг, маржа, дневная просадка
-- [x] Метрики, walk-forward, отчёт markdown + PNG
-- [x] CLI `fundarb data sync`, `fundarb backtest`; заглушки команд этапов 1 и 2
-- [x] Тесты на расчёты, стратегию, загрузчик, бэктестер, CLI
-- [x] `make lint`, `make test` зелёные
-- [ ] `make backtest` на данных Bybit: из облачной среды Bybit недоступен по региону, нужен запуск с компьютера пользователя
-- [x] `make backtest-archive` на публичном архиве Binance как замена: отчёт в `reports/latest.md`
-- [x] Отчёт пользователю простыми словами
+- [x] Project structure, `pyproject.toml`, `Makefile`, configs, `.env.example`, `.gitignore`
+- [x] Core: data models, rounding to exchange rules, config loading, JSON logs
+- [x] `ExchangeAdapter` and the ccxt implementation for REST history
+- [x] History downloader for Bybit funding and hourly candles into Parquet, incremental
+- [x] Strategy: funding forecast, costs, `expected_net_apr`, position size, entry/exit/rotation
+- [x] Backtester: event-driven, fees, spread, slippage, funding, margin, daily drawdown stop
+- [x] Metrics, walk-forward, markdown + PNG report
+- [x] CLI `fundarb data sync`, `fundarb backtest`; stubs for the phase 1 and 2 commands
+- [x] Tests for calculations, strategy, downloader, backtester, CLI
+- [x] `make lint`, `make test` green
+- [ ] `make backtest` on Bybit data: Bybit blocks the cloud region, needs a run from the
+      user's own computer
+- [x] `make backtest-archive` on Binance's public archive as a stand-in: report in
+      `reports/latest.md`
+- [x] Report to the user in plain language
 
-## Этап 1: paper-режим на живых данных
+## Phase 1: paper mode on live data
 
-Цель: бот круглые сутки работает на живых ценах без реальных денег, и вся механика
-(данные, риск, две ноги, учёт, сверка, алерты) доказана в бою.
+Goal: the bot runs around the clock on live prices without real money, and the whole
+mechanism (data, risk, two legs, ledger, reconciliation, alerts) is proven in the field.
 
-- [ ] Живые данные: WebSocket-подписки на стакан, сделки, mark price и фандинг через ccxt;
-      контроль устаревания, автоматический реконнект
-- [ ] `PaperExchangeAdapter`: исполнение по живому стакану с комиссиями и проскальзыванием,
-      тот же интерфейс, что у реальной биржи
-- [ ] Торговый цикл: стратегия раз в фандинг-период, риск-модуль со всеми лимитами,
-      мягкий и жёсткий kill switch, прерыватель по ошибкам API, проверка депега стейблкоинов
-- [ ] Исполнение двух ног: первая post-only, вторая IOC, таймаут и откат, частичные исполнения,
-      идемпотентные `clientOrderId`, ретраи с экспоненциальной задержкой
-- [ ] Леджер SQLite: позиции, ордера, исполнения, фандинг, PnL; сверка с биржей каждую минуту;
-      восстановление состояния с биржи после рестарта
-- [ ] Telegram: алерты (вход, выход, kill switch, расхождение, устаревшие данные, откат ноги,
-      дневной отчёт) и команды `/status`, `/pause`, `/resume`, `/flatten` с подтверждением
-- [ ] Docker и docker-compose, запуск на VPS, команда `fundarb status`
-- [ ] Отчёт пользователю простым языком
+- [ ] Live data: WebSocket subscriptions to order book, trades, mark price and funding via
+      ccxt; staleness control, automatic reconnect
+- [ ] `PaperExchangeAdapter`: fills against the live order book with fees and slippage, same
+      interface as the real exchange
+- [ ] Trading loop: strategy once per funding period, risk module with every limit, soft and
+      hard kill switch, API error breaker, stablecoin depeg check
+- [ ] Two-leg execution: first leg post-only, second IOC, timeout and rollback, partial fills,
+      idempotent `clientOrderId`, retries with exponential backoff
+- [ ] SQLite ledger: positions, orders, fills, funding, P&L; reconciliation with the exchange
+      every minute; state restored from the exchange after a restart
+- [ ] Telegram: alerts (entry, exit, kill switch, mismatch, stale data, leg rollback, daily
+      report) and commands `/status`, `/pause`, `/resume`, `/flatten` with confirmation
+- [ ] Docker and docker-compose, VPS deployment, `fundarb status`
+- [ ] Report to the user in plain language
 
-Нужно от пользователя: токен Telegram-бота и id чата. Ключи биржи не нужны, данные публичные.
+Needed from the user: Telegram bot token and chat id. No exchange keys: the data is public.
 
-Готово, когда: семь дней подряд в Docker без ручного вмешательства, ни одного эпизода без
-хеджа дольше `unhedged_max_sec`, сверка чистая, отчёт показан, пользователь написал `дальше`.
+Done when: seven days in a row in Docker without manual intervention, no unhedged episode
+longer than `unhedged_max_sec`, clean reconciliation, report shown, user wrote `дальше`.
 
-## Этап 2: лайв на малом капитале
+## Phase 2: live with small capital
 
-Цель: реальные деньги, маленькая сумма, сначала testnet.
+Goal: real money, a small amount, testnet first.
 
-- [ ] Реальный адаптер для торговли: ордера, балансы, позиции, переводы между кошельками
-- [ ] Проверка прав API-ключа при старте: без права вывода, иначе отказ запускаться
-- [ ] Шлюз реальной торговли подключён к реальному адаптеру: `LIVE_TRADING=true`,
-      флаг `--live`, фраза в консоли
-- [ ] Режим testnet Bybit, прогон на нём до реального счёта
-- [ ] `RUNBOOK.md`: что делать, если бот остановился, как закрыть всё вручную,
-      как перезапустить, как проверить сверку
-- [ ] Дневной отчёт в Telegram с капиталом, доходом, позициями и комиссиями
+- [ ] Real trading adapter: orders, balances, positions, transfers between wallets
+- [ ] API key permission check at startup: no withdrawal rights, otherwise refuse to start
+- [ ] Live-trading gate wired to the real adapter: `LIVE_TRADING=true`, `--live`, console phrase
+- [ ] Bybit testnet mode, run there before the real account
+- [ ] `RUNBOOK.md`: what to do if the bot stops, how to flatten by hand, how to restart, how
+      to verify reconciliation
+- [ ] Daily Telegram report with capital, income, positions and fees
 
-Нужно от пользователя: API-ключ Bybit только с правом торговли, без вывода, с привязкой к IP
-сервера (сначала testnet, потом реальный), сумма для старта, фраза
-`ВКЛЮЧАЮ РЕАЛЬНУЮ ТОРГОВЛЮ` в чате.
+Needed from the user: a Bybit API key with trading rights only, no withdrawals, IP-bound to
+the server (testnet first, then real), the starting amount, the phrase
+`ВКЛЮЧАЮ РЕАЛЬНУЮ ТОРГОВЛЮ` in chat.
 
-Готово, когда: месяц работы без инцидентов и расхождений.
+Done when: a month of operation without incidents or mismatches.
 
-## Этап 3: расширение, только по команде пользователя
+## Phase 3: expansion, only on the user's order
 
-- [ ] Адаптер Hyperliquid и схема перп-перп между биржами для отрицательного фандинга
-- [ ] Прогноз фандинга моделью LightGBM; включается только если на walk-forward лучше
-      экспоненциального среднего
-- [ ] LLM-парсер анонсов биржи о делистингах и техработах, который заполняет `exchange_events`;
-      результат проверяется по схеме и никогда не создаёт ордера напрямую
-- [ ] По желанию: история premium index Bybit, чтобы в бэктесте появился predicted funding
+- [ ] Hyperliquid adapter and a perp-perp scheme across exchanges for negative funding
+- [ ] Funding forecast with LightGBM; enabled only if it beats the exponential average on
+      walk-forward
+- [ ] LLM parser of exchange announcements (delistings, maintenance) that fills
+      `exchange_events`; output validated against a schema, never creates orders directly
+- [ ] Optional: Bybit premium-index history so the backtest gets a predicted funding rate

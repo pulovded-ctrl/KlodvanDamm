@@ -8,7 +8,7 @@ exchange:
   id: binance_vision
   testnet: false
   unified_account: true
-  note: "Данные из публичного архива Binance как замена Bybit. Ставки фандинга на Bybit отличаются."
+  note: "Binance public archive used as a stand-in for Bybit. Bybit funding rates differ."
 
 fees:
   spot_maker_bps: 10.0

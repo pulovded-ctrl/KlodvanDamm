@@ -1,43 +1,48 @@
-# Правила проекта fundarb (действуют в каждой сессии)
+# fundarb project rules (apply in every session)
 
-## Пользователь
-- Пользователь не программист. Отчёты и объяснения ему: простой русский язык без жаргона.
-- Код, имена файлов, комментарии в коде: английский.
-- Технические решения принимать самостоятельно, не задавать технических вопросов.
-  Каждое важное решение: одна строка в `DECISIONS.md`.
-- Спрашивать пользователя можно только о: API-ключах биржи, токене Telegram-бота,
-  подтверждении реальной торговли.
-- Реальную торговлю включать только после точной фразы пользователя в чате:
+## The user
+- The user is not a programmer. Reports and explanations to them in chat: plain Russian,
+  no jargon.
+- Everything in the repository is English: code, file names, comments, docs, the program's
+  interface (CLI, reports, Telegram messages).
+- Take technical decisions yourself, do not ask technical questions. Every important
+  decision: one line in `DECISIONS.md`.
+- The user may only be asked about: exchange API keys, the Telegram bot token,
+  confirmation of live trading.
+- Enable live trading only after the user writes exactly this phrase in chat:
   `ВКЛЮЧАЮ РЕАЛЬНУЮ ТОРГОВЛЮ`.
-- Не обещать доходность. Не выдумывать результаты бэктестов. Нет данных: так и сказать.
+- Never promise returns. Never invent backtest results. No data: say so.
 
-## Стек
-- Python 3.12, asyncio, `uv`, версии зафиксированы в `uv.lock`.
+## Stack
+- Python 3.12, asyncio, `uv`, versions pinned in `uv.lock`.
 - pydantic v2, ruff, mypy (strict), pytest, pytest-asyncio.
-- Один процесс, модули: `marketdata`, `strategy`, `risk`, `execution`, `ledger`, `control`,
-  `backtest`. До этапа 3: без Redis, Kafka, ClickHouse, Postgres. SQLite + Parquet.
-- Биржа только через `ExchangeAdapter`. Реализации: ccxt (async, WS), paper.
-- Первая биржа Bybit. Код стратегии один для бэктеста, paper и лайва.
-- Конфиги: `config/settings.yaml`, `config/strategy.yaml`. Секреты только в `.env`.
-- Логи JSON с полем `event`. Telegram через обычный HTTP к Bot API.
+- One process, modules: `marketdata`, `strategy`, `risk`, `execution`, `ledger`, `control`,
+  `backtest`. Before phase 3: no Redis, Kafka, ClickHouse, Postgres. SQLite + Parquet.
+- Exchanges only through `ExchangeAdapter`. Implementations: ccxt (async, WS), paper,
+  Binance public archive (history only).
+- First exchange Bybit. One strategy code path for backtest, paper and live.
+- Configs: `config/settings.yaml`, `config/strategy.yaml`. Secrets only in `.env`.
+- JSON logs with an `event` field. Telegram through plain HTTP to the Bot API.
 
-## Безопасность, нарушать нельзя
-- Ключи только с правом торговли, без вывода, с IP whitelist. В лайве проверять права ключа.
-- По умолчанию paper. Лайв = `LIVE_TRADING=true` + `--live` + фраза в консоли.
-- Никогда не коммитить `.env`, ключи, токены.
-- Плечо шорт-ноги не выше `max_leverage_perp`. Ни одной позиции без хеджа дольше
+## Safety, never violated
+- Keys with trading rights only, no withdrawals, IP whitelist. In live mode verify the key's
+  permissions.
+- Paper by default. Live = `LIVE_TRADING=true` + `--live` + the phrase typed in the console.
+- Never commit `.env`, keys, tokens.
+- Short-leg leverage never above `max_leverage_perp`. No position unhedged for longer than
   `unhedged_max_sec`.
-- Kill switch: мягкий (нет новых входов) и жёсткий (закрыть всё), жёсткий с подтверждением.
-- Идемпотентные `clientOrderId`, ретраи с экспоненциальной задержкой.
+- Kill switch: soft (no new entries) and hard (flatten everything), hard needs confirmation.
+- Idempotent `clientOrderId`, retries with exponential backoff.
 
-## Этапы
-- Этап 0: каркас, загрузчик истории, бэктестер, отчёт, тесты.
-- Этап 1: paper-режим на живых данных, риск, исполнение двух ног, леджер, сверка, Telegram, Docker.
-- Этап 2: лайв на малом капитале, сначала testnet.
-- Этап 3: Hyperliquid, LightGBM-прогноз, LLM-парсер анонсов. Только по команде пользователя.
-- К следующему этапу только после критериев готовности и слова пользователя `дальше`.
+## Phases
+- Phase 0: skeleton, history downloader, backtester, report, tests.
+- Phase 1: paper mode on live data, risk, two-leg execution, ledger, reconciliation,
+  Telegram, Docker.
+- Phase 2: live with small capital, testnet first.
+- Phase 3: Hyperliquid, LightGBM forecast, LLM announcement parser. Only on the user's order.
+- Move to the next phase only after its readiness criteria are met and the user writes `дальше`.
 
-## Порядок работы
-- Перед коммитом: `make lint` и `make test` зелёные.
-- Коммит после каждого законченного шага. Вести `CHANGELOG.md`.
-- Не изобретать API: при сомнениях проверять документацию.
+## How to work
+- Before every commit: `make lint` and `make test` green.
+- Commit after every finished step. Keep `CHANGELOG.md`.
+- Do not invent APIs: when in doubt, read the documentation.

@@ -1,4 +1,4 @@
-"""Backtest report: markdown (Russian, for the owner) plus an equity/drawdown PNG and JSON."""
+"""Backtest report: markdown plus an equity/drawdown PNG and a JSON with the metrics."""
 
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ class ReportInputs:
 
 def pct(value: float, digits: int = 1) -> str:
     if value is None or (isinstance(value, float) and math.isnan(value)):
-        return "н/д"
+        return "n/a"
     return f"{value * 100:.{digits}f}%"
 
 
@@ -66,51 +66,51 @@ def usd(value: float) -> str:
 
 
 def _dt(value: datetime | None) -> str:
-    return value.strftime("%Y-%m-%d") if value else "н/д"
+    return value.strftime("%Y-%m-%d") if value else "n/a"
 
 
 def metrics_table(m: Metrics) -> str:
     rows = [
-        ("Период", f"{_dt(m.start)} → {_dt(m.end)} ({m.days:.0f} дней)"),
-        ("Капитал в начале и в конце", f"{usd(m.initial_usd)} → {usd(m.final_usd)}"),
-        ("Доходность за период", pct(m.total_return)),
-        ("Доходность в годовых", pct(m.annual_return)),
-        ("Sharpe (по дневным данным)", f"{m.sharpe:.2f}"),
-        ("Максимальная просадка", pct(m.max_drawdown)),
-        ("Сделок (полных кругов)", f"{m.trades}, частичных сокращений {m.partial_closes}"),
-        ("Доля прибыльных сделок", pct(m.win_rate)),
-        ("Средняя длительность позиции", f"{m.avg_hold_hours / 24:.1f} дней"),
-        ("Время в рынке", pct(m.time_in_market)),
-        ("Оборот в год (к капиталу)", f"{m.turnover_annual:.1f}x"),
-        ("Получено фандинга", usd(m.funding_usd)),
-        ("Результат по базису (спот минус перп, по средним ценам)", usd(m.basis_pnl_usd)),
-        ("Комиссии биржи", usd(m.fees_usd)),
-        ("Спред и проскальзывание", usd(m.spread_slippage_usd)),
-        ("Доля всех издержек в валовом доходе", pct(m.fees_share_of_gross)),
+        ("Period", f"{_dt(m.start)} to {_dt(m.end)} ({m.days:.0f} days)"),
+        ("Capital, start to end", f"{usd(m.initial_usd)} to {usd(m.final_usd)}"),
+        ("Return over the period", pct(m.total_return)),
+        ("Annualised return", pct(m.annual_return)),
+        ("Sharpe (daily returns)", f"{m.sharpe:.2f}"),
+        ("Max drawdown", pct(m.max_drawdown)),
+        ("Trades (full round trips)", f"{m.trades}, partial reductions {m.partial_closes}"),
+        ("Winning trades", pct(m.win_rate)),
+        ("Average holding time", f"{m.avg_hold_hours / 24:.1f} days"),
+        ("Time in market", pct(m.time_in_market)),
+        ("Annual turnover (x capital)", f"{m.turnover_annual:.1f}x"),
+        ("Funding received", usd(m.funding_usd)),
+        ("Basis P&L (spot minus perp, at mid prices)", usd(m.basis_pnl_usd)),
+        ("Exchange fees", usd(m.fees_usd)),
+        ("Spread and slippage", usd(m.spread_slippage_usd)),
+        ("All costs as a share of gross income", pct(m.fees_share_of_gross)),
         (
-            "Стоп-краны, пополнения маржи, сокращения",
+            "Hard stops, margin top-ups, reductions",
             f"{m.hard_stops}, {m.margin_topups}, {m.reductions}",
         ),
-        ("Отклонённых входов (не хватило денег или размера)", str(m.rejected_entries)),
+        ("Rejected entries (not enough cash or size)", str(m.rejected_entries)),
     ]
-    lines = ["| Показатель | Значение |", "|---|---|"]
+    lines = ["| Metric | Value |", "|---|---|"]
     lines += [f"| {k} | {v} |" for k, v in rows]
     return "\n".join(lines)
 
 
 def _fold_table(wf: WalkForwardResult) -> str:
     lines = [
-        "| Отрезок | Обучение | Проверка | Выбранные параметры | Sharpe обуч. | Доход обуч. "
-        "| Доход провер. | Просадка провер. | Сделок провер. |",
+        "| Fold | Training | Test | Chosen parameters | Train Sharpe | Train return "
+        "| Test return | Test drawdown | Test trades |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for fr in wf.folds:
         tr, te = fr.train_metrics, fr.test_metrics
-        chosen = ", ".join(f"{k}={v}" for k, v in fr.overrides.items()) or "по умолчанию"
+        chosen = ", ".join(f"{k}={v}" for k, v in fr.overrides.items()) or "defaults"
         if fr.note:
             chosen += f" ({fr.note})"
         lines.append(
-            f"| {fr.fold.number + 1} | {_dt(tr.start)} → {_dt(tr.end)} | {_dt(te.start)} → "
+            f"| {fr.fold.number + 1} | {_dt(tr.start)} to {_dt(tr.end)} | {_dt(te.start)} to "
             f"{_dt(te.end)} | {chosen} | {tr.sharpe:.2f} | {pct(tr.total_return)} | "
             f"{pct(te.total_return)} | {pct(te.max_drawdown)} | {te.trades} |"
         )
@@ -125,9 +125,9 @@ def _per_coin_table(result: BacktestResult, limit: int = 12) -> str:
         totals[t.base]["fees"] += t.fees_usd
         totals[t.base]["n"] += 0 if t.partial else 1
     if not totals:
-        return "Сделок не было."
+        return "No trades."
     ranked = sorted(totals.items(), key=lambda kv: kv[1]["net"], reverse=True)
-    lines = ["| Монета | Сделок | Фандинг | Издержки | Итог |", "|---|---|---|---|---|"]
+    lines = ["| Coin | Trades | Funding | Costs | Net |", "|---|---|---|---|---|"]
     for base, agg in ranked[:limit]:
         lines.append(
             f"| {base} | {int(agg['n'])} | {usd(agg['funding'])} | {usd(agg['fees'])} | "
@@ -135,7 +135,7 @@ def _per_coin_table(result: BacktestResult, limit: int = 12) -> str:
         )
     if len(ranked) > limit:
         rest = sum(agg["net"] for _, agg in ranked[limit:])
-        lines.append(f"| остальные {len(ranked) - limit} | | | | {usd(rest)} |")
+        lines.append(f"| other {len(ranked) - limit} | | | | {usd(rest)} |")
     return "\n".join(lines)
 
 
@@ -143,64 +143,64 @@ def _coverage_section(cov: DataCoverage) -> str:
     summary = coverage_summary(cov)
     src = cov.source
     lines = [
-        f"- Источник: биржа `{src.get('exchange', 'н/д')}`, "
-        f"таймфрейм `{src.get('timeframe', 'н/д')}`, "
-        f"последняя докачка `{src.get('last_sync_at', 'н/д')}`.",
-        f"- Правило отбора монет: {src.get('universe_rule', 'н/д')}.",
-        f"- Монет в данных: {summary['coins_total']}, пригодных: {summary['coins_usable']}.",
-        f"- Диапазон: {_dt(summary['first_ts'])} → {_dt(summary['last_ts'])}.",  # type: ignore[arg-type]
+        f"- Source: exchange `{src.get('exchange', 'n/a')}`, "
+        f"timeframe `{src.get('timeframe', 'n/a')}`, "
+        f"last sync `{src.get('last_sync_at', 'n/a')}`.",
+        f"- Coin selection rule: {src.get('universe_rule', 'n/a')}.",
+        f"- Coins in data: {summary['coins_total']}, usable: {summary['coins_usable']}.",
+        f"- Range: {_dt(summary['first_ts'])} to {_dt(summary['last_ts'])}.",  # type: ignore[arg-type]
     ]
     warnings = summary["warnings"]
     assert isinstance(warnings, list)
     if warnings:
-        lines.append(f"- **Предупреждения ({len(warnings)}):**")
+        lines.append(f"- **Warnings ({len(warnings)}):**")
         lines += [f"  - {w}" for w in warnings[:40]]
         if len(warnings) > 40:
-            lines.append(f"  - ... и ещё {len(warnings) - 40}")
+            lines.append(f"  - ... and {len(warnings) - 40} more")
     else:
-        lines.append("- Предупреждений нет.")
+        lines.append("- No warnings.")
     return "\n".join(lines)
 
 
 def _assumptions(inp: ReportInputs) -> str:
     s, f = inp.settings, inp.fees
-    note = [f"- **Источник данных: {inp.exchange_note}**"] if inp.exchange_note else []
+    note = [f"- **Data source: {inp.exchange_note}**"] if inp.exchange_note else []
     return "\n".join(
         [
             *note,
-            f"- Комиссии: спот maker {f.spot_maker_bps} bps, taker {f.spot_taker_bps} bps; "
-            f"перп maker {f.perp_maker_bps} bps, taker {f.perp_taker_bps} bps. "
-            "Проверьте свой тариф на бирже, по умолчанию стоят публичные ставки без VIP.",
-            f"- Спред: истории стакана нет, взят {s.assumed_spread_bps} bps на каждой ноге.",
-            f"- Проскальзывание: {s.slippage_coef_bps} bps на каждые 100% минутного объёма.",
-            f"- Маржа шорт-ноги изолированная, поддерживающая ставка "
-            f"{s.maintenance_margin_rate * 100:.2f}%. Это строже unified-аккаунта.",
-            "- Predicted funding биржи в бэктесте недоступен, прогноз только по истории. "
-            "В живой торговле он будет ограничивать прогноз сверху.",
-            "- Вселенная монет выбрана по объёму на момент скачивания: есть ошибка выжившего, "
-            "результат может быть завышен.",
-            "- Позиции в конце периода закрываются принудительно, чтобы учесть все издержки.",
+            f"- Fees: spot maker {f.spot_maker_bps} bps, taker {f.spot_taker_bps} bps; "
+            f"perp maker {f.perp_maker_bps} bps, taker {f.perp_taker_bps} bps. "
+            "Check your own tier on the exchange; defaults are public non-VIP rates.",
+            f"- Spread: no order-book history, {s.assumed_spread_bps} bps assumed on each leg.",
+            f"- Slippage: {s.slippage_coef_bps} bps per 100% of one minute's volume.",
+            f"- Short-leg margin is isolated, maintenance rate "
+            f"{s.maintenance_margin_rate * 100:.2f}%. Stricter than a unified account.",
+            "- The exchange's predicted funding is not available in the backtest; the forecast "
+            "uses history only. Live trading caps the forecast with it.",
+            "- The coin universe was picked by volume at download time: survivorship bias, "
+            "results may be flattered.",
+            "- Positions are force-closed at the end of the period so every cost is counted.",
         ]
     )
 
 
 def _funding_env_section(env: list[FundingEnv] | None) -> str:
     if not env:
-        return "Нет данных о фандинге."
+        return "No funding data."
     total = sum(e.settlements for e in env)
     if total == 0:
-        return "Нет данных о фандинге."
+        return "No funding data."
     above15 = sum(e.share_above_15 * e.settlements for e in env) / total
     above50 = sum(e.share_above_50 * e.settlements for e in env) / total
     negative = sum(e.share_negative * e.settlements for e in env) / total
     lines = [
-        f"По всем монетам и выплатам: фандинг выше 15% годовых был в {pct(above15)} выплат, "
-        f"выше 50% в {pct(above50)}, отрицательный в {pct(negative)}. "
-        "Стратегия зарабатывает только на выплатах выше порога входа после издержек, "
-        "остальное время она ждёт в деньгах.",
+        f"Across all coins and settlements: funding above 15% annualised in {pct(above15)} "
+        f"of settlements, above 50% in {pct(above50)}, negative in {pct(negative)}. "
+        "The strategy only earns on settlements above the entry threshold after costs; "
+        "the rest of the time it waits in cash.",
         "",
-        "| Монета | Выплат | Средний фандинг, годовых | Медиана | Доля выше 15% "
-        "| Доля отрицательных |",
+        "| Coin | Settlements | Mean funding, annualised | Median | Share above 15% "
+        "| Share negative |",
         "|---|---|---|---|---|---|",
     ]
     for e in sorted(env, key=lambda x: x.mean_apr, reverse=True)[:15]:
@@ -209,20 +209,20 @@ def _funding_env_section(env: list[FundingEnv] | None) -> str:
             f"{pct(e.share_above_15)} | {pct(e.share_negative)} |"
         )
     if len(env) > 15:
-        lines.append(f"| ... ещё {len(env) - 15} монет | | | | | |")
+        lines.append(f"| ... {len(env) - 15} more coins | | | | | |")
     return "\n".join(lines)
 
 
 def _oos_section(wf: WalkForwardResult | None) -> str:
     if wf is None:
-        return "Walk-forward отключён флагом."
+        return "Walk-forward disabled by flag."
     if wf.skipped_reason:
-        return f"Walk-forward не проводился: {wf.skipped_reason}."
+        return f"Walk-forward skipped: {wf.skipped_reason}."
     if wf.oos_metrics is None:
-        return "Walk-forward не дал ни одного проверочного отрезка."
+        return "Walk-forward produced no test fold."
     parts = [
-        f"Сетка из {wf.grid_size} комбинаций, {len(wf.folds)} отрезков. Параметры подбирались "
-        "только на обучающем отрезке и проверялись на следующем за ним.",
+        f"Grid of {wf.grid_size} combinations, {len(wf.folds)} folds. Parameters were tuned "
+        "on the training window only and evaluated on the window that follows it.",
         "",
         metrics_table(wf.oos_metrics),
         "",
@@ -235,63 +235,63 @@ def _verdict(inp: ReportInputs) -> str:
     wf = inp.walk_forward
     if wf is None or wf.oos_metrics is None:
         m = inp.default_metrics
-        basis = "по всему периоду с параметрами по умолчанию (walk-forward не было)"
+        basis = "over the full period with default parameters (no walk-forward)"
     else:
         m = wf.oos_metrics
-        basis = "по out-of-sample отрезкам walk-forward"
+        basis = "on the out-of-sample walk-forward folds"
     if m.trades == 0:
-        return f"Сделок не было {basis}: фандинг не превышал порог входа после издержек."
-    tone = "положительный" if m.total_return > 0 else "отрицательный"
+        return f"No trades {basis}: funding never exceeded the entry threshold after costs."
+    tone = "positive" if m.total_return > 0 else "negative"
     return (
-        f"Результат {basis}: {tone}, {pct(m.annual_return)} в годовых при просадке "
-        f"{pct(m.max_drawdown)} и {m.trades} сделках. Издержки съели {pct(m.fees_share_of_gross)} "
-        "валового дохода."
+        f"Result {basis}: {tone}, {pct(m.annual_return)} annualised with a max drawdown of "
+        f"{pct(m.max_drawdown)} over {m.trades} trades. Costs took {pct(m.fees_share_of_gross)} "
+        "of gross income."
     )
 
 
 def render_markdown(inp: ReportInputs) -> str:
     when = inp.generated_at or datetime.now(UTC)
     sections = [
-        "# Отчёт бэктеста: фандинг-арбитраж",
+        "# Backtest report: funding-rate arbitrage",
         "",
-        f"Сформирован {when.strftime('%Y-%m-%d %H:%M UTC')}. Биржа: `{inp.exchange}`. "
-        f"Стартовый капитал: {usd(inp.settings.initial_capital_usd)}.",
+        f"Generated {when.strftime('%Y-%m-%d %H:%M UTC')}. Exchange: `{inp.exchange}`. "
+        f"Initial capital: {usd(inp.settings.initial_capital_usd)}.",
         "",
-        "## Коротко",
+        "## Summary",
         "",
         _verdict(inp),
         "",
-        "## Out-of-sample (главные цифры)",
+        "## Out-of-sample (the numbers that matter)",
         "",
         _oos_section(inp.walk_forward),
         "",
-        "## Весь период с параметрами по умолчанию (для справки, in-sample)",
+        "## Full period with default parameters (reference, in-sample)",
         "",
         metrics_table(inp.default_metrics),
         "",
-        "### По монетам (весь период, параметры по умолчанию)",
+        "### By coin (full period, default parameters)",
         "",
         _per_coin_table(inp.default_result),
         "",
-        "## Среда фандинга: сколько вообще платили в этот период",
+        "## Funding environment: what the market actually paid",
         "",
         _funding_env_section(inp.funding_env),
         "",
-        "## Покрытие данных",
+        "## Data coverage",
         "",
         _coverage_section(inp.coverage),
         "",
-        "## Допущения и оговорки",
+        "## Assumptions and caveats",
         "",
         _assumptions(inp),
         "",
-        "## Параметры стратегии",
+        "## Strategy parameters",
         "",
         "```yaml",
         _params_yaml(inp.params),
         "```",
         "",
-        "![Кривая капитала](latest.png)",
+        "![Equity curve](latest.png)",
         "",
     ]
     return "\n".join(sections)
@@ -326,7 +326,7 @@ def render_png(inp: ReportInputs, path: Path) -> None:
             default_eq.to_numpy(dtype=float) / initial * 100.0,
             color=SERIES_2,
             linewidth=2,
-            label="Весь период, параметры по умолчанию (in-sample)",
+            label="Full period, default parameters (in-sample)",
         )
     if not oos_eq.empty:
         ax1.plot(
@@ -336,8 +336,8 @@ def render_png(inp: ReportInputs, path: Path) -> None:
             linewidth=2,
             label="Out-of-sample (walk-forward)",
         )
-    ax1.set_ylabel("Капитал, % от начального", color=TEXT_SECONDARY)
-    ax1.set_title("Кривая капитала", color=TEXT_PRIMARY, loc="left", fontsize=12)
+    ax1.set_ylabel("Capital, % of initial", color=TEXT_SECONDARY)
+    ax1.set_title("Equity curve", color=TEXT_PRIMARY, loc="left", fontsize=12)
     if not default_eq.empty or not oos_eq.empty:
         ax1.legend(frameon=False, labelcolor=TEXT_PRIMARY, fontsize=9, loc="upper left")
     dd_source = oos_eq if not oos_eq.empty else default_eq
@@ -345,9 +345,9 @@ def render_png(inp: ReportInputs, path: Path) -> None:
         dd = (dd_source / dd_source.cummax() - 1.0) * 100.0
         ax2.fill_between(dd.index, dd.values, 0, color=SERIES_1, alpha=0.25, linewidth=0)
         ax2.plot(dd.index, dd.values, color=SERIES_1, linewidth=1.5)
-    ax2.set_ylabel("Просадка, %", color=TEXT_SECONDARY)
+    ax2.set_ylabel("Drawdown, %", color=TEXT_SECONDARY)
     ax2.set_title(
-        "Просадка " + ("out-of-sample" if not oos_eq.empty else "in-sample"),
+        "Drawdown " + ("out-of-sample" if not oos_eq.empty else "in-sample"),
         color=TEXT_PRIMARY,
         loc="left",
         fontsize=11,

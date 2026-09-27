@@ -168,7 +168,7 @@ def test_funding_interval_inferred_from_data(tmp_path: Path, start_dt: datetime)
     store.append_funding("BTC", four_hourly)
     store.save_instruments({"BTC": rules})
     dataset = build_dataset(store, min_bars=24)
-    assert any("интервал фандинга" in w for w in dataset.coverage.warnings)
+    assert any("funding interval" in w for w in dataset.coverage.warnings)
     coin = dataset.coins["BTC"]
     assert coin.interval_upto(len(dataset) - 1, 6) == 4.0
     assert coin.rules_at(len(dataset) - 1, 6).funding_interval_hours == 4.0

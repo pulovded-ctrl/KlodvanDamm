@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-LIVE_CONFIRMATION_PHRASE = "ВКЛЮЧАЮ РЕАЛЬНУЮ ТОРГОВЛЮ"
+LIVE_CONFIRMATION_PHRASE = "ENABLE LIVE TRADING"
 LIVE_ENV_VAR = "LIVE_TRADING"
 
 
 def live_gate_error(*, flag: bool, env_value: str | None, typed_phrase: str | None) -> str | None:
-    """Returns a human-readable (Russian) reason why live trading is NOT allowed, or None."""
+    """Returns a human-readable reason why live trading is NOT allowed, or None."""
     if not flag:
-        return "нет флага --live"
+        return "the --live flag is missing"
     if (env_value or "").strip().lower() != "true":
-        return f"переменная {LIVE_ENV_VAR} не равна true"
+        return f"environment variable {LIVE_ENV_VAR} is not 'true'"
     if typed_phrase is None:
-        return "подтверждающая фраза не введена"
+        return "the confirmation phrase was not typed"
     if typed_phrase.strip() != LIVE_CONFIRMATION_PHRASE:
-        return "подтверждающая фраза не совпала"
+        return "the confirmation phrase did not match"
     return None

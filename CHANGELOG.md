@@ -2,16 +2,17 @@
 
 ## Unreleased
 
-### Этап 0
-- Каркас проекта: `pyproject.toml` с `uv`, `Makefile`, конфиги, `.env.example`, документация.
-- Ядро: модели данных (`MarketSnapshot`, `TargetAction`, правила инструментов), округление по шагу лота через Decimal, типизированные конфиги с запретом неизвестных ключей, JSON-логи.
-- Интерфейс `ExchangeAdapter`, реализация на ccxt (справочник инструментов, объёмы, история фандинга и свечей), Parquet-хранилище, загрузчик с постраничной докачкой только новых данных и изоляцией ошибок по монетам.
-- Стратегия: прогноз фандинга (EWMA с ограничением по predicted), модель издержек круга, размер позиции по минимальному из лимитов, машина состояний входа, выхода и ротации со счётчиками подтверждения по новым выплатам фандинга.
-- Бэктестер: выравнивание истории на часовой индекс с проверкой покрытия, событийный движок с комиссиями, спредом, проскальзыванием, выплатами фандинга, изолированной маржой шорт-ноги, пополнением или сокращением при сжатии дистанции до ликвидации, дневным стоп-краном; метрики.
-- Walk-forward: скользящие отрезки обучение/проверка, сетка параметров, параллельный прогон, склейка out-of-sample кривой.
-- Отчёт: markdown на русском, PNG с кривой капитала и просадкой, JSON с метриками; раздел покрытия данных и оговорок.
-- CLI: `fundarb data sync`, `fundarb backtest`, заглушки `paper`, `live`, `status`, `pause`, `resume`, `flatten`; шлюз реальной торговли из трёх замков.
-- Адаптер публичного архива Binance (`binance_vision`) для истории фандинга и свечей с кэшем на диске; фабрика адаптеров; настройки `config/settings.binance_vision.yaml`, цели `make data-archive` и `make backtest-archive`.
-- Интервал фандинга выводится из данных по каждой монете; заметка об источнике данных в отчёте.
-- Резерв денег под пополнение маржи, отдельный учёт спреда и проскальзывания, раздел «среда фандинга» в отчёте, горизонт удержания по умолчанию 90 периодов, стейблкоины в чёрном списке.
-- Первый бэктест на реальных данных (архив Binance, 60 монет, 2024-01 → 2026-08): отчёт `reports/latest.md`.
+### Phase 0
+- Project skeleton: `pyproject.toml` with `uv`, `Makefile`, configs, `.env.example`, documentation.
+- Core: data models (`MarketSnapshot`, `TargetAction`, instrument rules), Decimal-based rounding to lot steps, typed configs that reject unknown keys, JSON logs.
+- `ExchangeAdapter` interface, ccxt implementation (instrument reference, volumes, funding and candle history), Parquet store, downloader with forward paging that only fetches new data and isolates per-coin errors.
+- Strategy: funding forecast (EWMA capped by predicted funding), round-trip cost model, position size as the minimum of every cap, entry/exit/rotation state machine with confirmation counters driven by new funding settlements.
+- Backtester: history aligned on an hourly index with coverage checks, event-driven engine with fees, spread, slippage, funding payments, isolated short-leg margin with top-up or reduction when the liquidation distance shrinks, daily drawdown stop; metrics.
+- Walk-forward: rolling train/test folds, parameter grid, parallel evaluation, chained out-of-sample equity.
+- Report: markdown, PNG with equity curve and drawdown, JSON with metrics; data coverage and caveats sections.
+- CLI: `fundarb data sync`, `fundarb backtest`, stubs `paper`, `live`, `status`, `pause`, `resume`, `flatten`; three-lock live-trading gate.
+- Binance public-archive adapter (`binance_vision`) for funding and candle history with an on-disk cache; adapter factory; `config/settings.binance_vision.yaml`, targets `make data-archive` and `make backtest-archive`.
+- Funding interval inferred from the data per coin; data-source note in the report.
+- Cash reserve for margin top-ups, spread and slippage reported separately, funding-environment section in the report, default holding horizon 90 periods, stablecoins blacklisted.
+- First real-data backtest (Binance archive, 60 coins, 2024-01 to 2026-08): report in `reports/latest.md`.
+- Interface and repository switched to English.

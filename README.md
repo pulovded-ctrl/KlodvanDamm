@@ -1,96 +1,98 @@
-# fundarb: бот на фандинг-арбитраже
+# fundarb: funding-rate arbitrage bot
 
-Бот покупает монету на споте и одновременно открывает шорт того же размера на бессрочном
-контракте той же монеты. Цена монеты ему не важна: рост спота компенсируется убытком шорта
-и наоборот. Доход это выплаты фандинга, которые получает шорт, когда фандинг положительный.
+The bot buys a coin on the spot market and at the same time opens a short of the same size
+on that coin's perpetual contract. The coin's price does not matter to it: a rise in spot is
+offset by the loss on the short and vice versa. The income is the funding payment the short
+receives when funding is positive.
 
-## Важно прочитать до начала
+## Read this before you start
 
-- Бот **не гарантирует доход**. Фандинг бывает месяцами около нуля, тогда бот просто ждёт.
-- Проверьте сами, **доступна ли биржа Bybit в вашей стране**. Это ваша ответственность.
-- API-ключи создавайте **только с правом торговли, без права вывода, с привязкой к IP**.
-- Режим по умолчанию: paper (бумажная торговля, без реальных денег). Реальная торговля
-  требует трёх условий сразу: `LIVE_TRADING=true` в `.env`, флаг `--live` и ввод
-  подтверждающей фразы в консоли.
+- The bot **does not guarantee income**. Funding can sit near zero for months; then the bot
+  simply waits in cash.
+- Check for yourself whether **Bybit is available in your country**. That is your
+  responsibility.
+- Create API keys **with trading rights only, no withdrawals, IP whitelist on**.
+- The default mode is paper (no real money). Live trading needs three things at once:
+  `LIVE_TRADING=true` in `.env`, the `--live` flag and a confirmation phrase typed in the
+  console.
 
-## Что готово сейчас (этап 0)
+## What works now (phase 0)
 
-- Загрузчик истории фандинга и часовых свечей Bybit в файлы Parquet.
-- Бэктестер: проверяет стратегию на прошлом с учётом комиссий, спреда, проскальзывания
-  и выплат фандинга. Делает walk-forward: подбирает параметры на одном отрезке и проверяет
-  на следующем.
-- Отчёт в папке `reports/`: markdown с цифрами и PNG с кривой капитала.
+- History downloader: funding rates and hourly candles from Bybit into Parquet files.
+- A backtester that replays the strategy on the past with fees, spread, slippage and funding
+  payments, and a walk-forward that tunes parameters on one window and checks them on the next.
+- A report in `reports/`: markdown with the numbers and a PNG with the equity curve.
 
-Чего ещё нет: живой торговли, paper-режима, Telegram. Это этапы 1 и 2.
+Not built yet: live trading, paper mode, Telegram. Those are phases 1 and 2.
 
-## Установка
+## Installation
 
-Нужны: `git`, `make`, `uv` (менеджер Python-окружений, ставится одной командой с
+You need `git`, `make` and `uv` (a Python environment manager, one-line install from
 https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
-git clone <адрес репозитория>
-cd <папка>
+git clone <repository url>
+cd <folder>
 make install
 ```
 
-Скопируйте `.env.example` в `.env`. Для этапа 0 ключи не нужны, история публичная.
+Copy `.env.example` to `.env`. Phase 0 needs no keys, the history is public.
 
-## Команды
+## Commands
 
-| Команда | Что делает |
+| Command | What it does |
 |---|---|
-| `make backtest` | Скачивает историю с Bybit (докачивает только новое) и строит отчёт в `reports/` |
-| `make data` | Только скачать или обновить историю |
-| `make test` | Запустить тесты |
-| `make lint` | Проверить код линтером и типами |
-| `make backtest-archive` | То же, но на публичном архиве Binance, если Bybit недоступен из вашей сети |
-| `make paper`, `make live`, `make status`, `make flatten` | Этапы 1 и 2, пока не реализованы |
+| `make backtest` | Downloads Bybit history (only new data on repeat runs) and writes a report to `reports/` |
+| `make data` | Only download or update the history |
+| `make backtest-archive` | Same backtest on Binance's public archive, for when Bybit is unreachable from your network |
+| `make test` | Run the tests |
+| `make lint` | Lint and type-check the code |
+| `make paper`, `make live`, `make status`, `make flatten` | Phases 1 and 2, not implemented yet |
 
-Первый запуск `make backtest` качает историю за период с `history_start` из
-`config/settings.yaml` и может занять десятки минут. Повторные запуски быстрые.
+The first `make backtest` downloads history from `history_start` in `config/settings.yaml`
+and can take tens of minutes. Later runs are fast.
 
-Полезные варианты команды бэктеста:
+Useful variants of the backtest command:
 
 ```bash
-uv run fundarb backtest --start 2024-06-01 --end 2025-06-01   # только этот период
-uv run fundarb backtest --base BTC --base ETH                  # только эти монеты
-uv run fundarb backtest --no-walk-forward                      # быстрее, без подбора параметров
-uv run fundarb backtest --jobs 2                               # ограничить число процессов
-uv run fundarb data sync --max-symbols 20                      # качать меньше монет
+uv run fundarb backtest --start 2024-06-01 --end 2025-06-01   # only this period
+uv run fundarb backtest --base BTC --base ETH                  # only these coins
+uv run fundarb backtest --no-walk-forward                      # faster, no parameter tuning
+uv run fundarb backtest --jobs 2                               # limit the number of processes
+uv run fundarb data sync --max-symbols 20                      # download fewer coins
 ```
 
-Если команда пишет «Не удалось подключиться к бирже», значит с этого компьютера
-нет доступа к `api.bybit.com`: проверьте интернет, VPN или сетевые ограничения.
-Bybit также отказывает серверам из некоторых стран. Тогда используйте
-`make backtest-archive`: он берёт историю из публичного архива Binance. Ставки фандинга
-на Binance и Bybit похожи, но не одинаковы, поэтому такой отчёт это оценка, а не точный
-результат для Bybit.
+If a command says "Could not connect to exchange", this computer cannot reach
+`api.bybit.com`: check your internet connection, VPN or network restrictions. Bybit also
+refuses servers from some countries. In that case use `make backtest-archive`: it takes the
+history from Binance's public archive. Binance and Bybit funding rates are similar but not
+identical, so that report is an estimate, not an exact Bybit result.
 
-## Как читать отчёт
+## How to read the report
 
-Откройте `reports/latest.md`. Главные строки:
+Open `reports/latest.md`. The lines that matter:
 
-- **Out-of-sample** это результат на данных, которых стратегия «не видела» при подборе
-  параметров. Смотрите на него, а не на in-sample.
-- **Максимальная просадка** это худшее падение капитала от пика. Если вам страшно
-  от этой цифры, стратегия не для вас.
-- **Доля комиссий** показывает, какую часть валового дохода съели издержки.
-- Раздел **Покрытие данных** говорит, каких данных не хватило. Если там предупреждения,
-  цифрам выше верить нельзя.
+- **Out-of-sample** is the result on data the strategy "did not see" while parameters were
+  tuned. Look at it, not at in-sample.
+- **Max drawdown** is the worst fall of capital from a peak. If that number scares you, the
+  strategy is not for you.
+- **All costs as a share of gross income** shows how much of the gross income fees, spread
+  and slippage ate.
+- **Data coverage** says what data was missing. If there are warnings, do not trust the
+  numbers above it.
 
-## Структура проекта
+## Project layout
 
 ```
-config/            настройки окружения и параметры стратегии
-src/fundarb/core       модели данных, округление, логи
-src/fundarb/exchanges  интерфейс биржи и реализация на ccxt
-src/fundarb/marketdata загрузка и хранение истории
-src/fundarb/strategy   прогноз фандинга, издержки, размер позиции, логика входа и выхода
-src/fundarb/backtest   бэктестер, метрики, walk-forward, отчёт
-src/fundarb/cli.py     команды
-tests/             тесты
+config/                environment settings and strategy parameters
+src/fundarb/core       data models, rounding, logging
+src/fundarb/exchanges  exchange interface, ccxt implementation, Binance archive adapter
+src/fundarb/marketdata history download and storage
+src/fundarb/strategy   funding forecast, costs, position sizing, entry and exit logic
+src/fundarb/backtest   backtester, metrics, walk-forward, report
+src/fundarb/cli.py     commands
+tests/                 tests
 ```
 
-Файлы для истории проекта: `PLAN.md` (план), `DECISIONS.md` (принятые решения),
-`CHANGELOG.md` (что менялось).
+Project history lives in `PLAN.md` (the plan), `DECISIONS.md` (decisions taken) and
+`CHANGELOG.md` (what changed). The original specification is in `PROMPT.md`.

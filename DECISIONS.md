@@ -1,34 +1,35 @@
-# Решения
+# Decisions
 
-Одна строка на решение. Формат: дата, решение, причина.
+One line per decision. Format: date, decision, reason.
 
-- 2026-09-27: Python 3.12 ставится через `uv python install`, системный 3.11 не используется; спецификация требует 3.12.
-- 2026-09-27: Логи через `structlog` с JSON-рендером; ключ `event` у него встроенный, лишний код не нужен.
-- 2026-09-27: В бэктесте нет истории стакана, поэтому спред берётся равным `backtest.assumed_spread_bps` (по умолчанию = `max_spread_bps`), а проскальзывание линейно от доли минутного объёма; это консервативно.
-- 2026-09-27: Маржа шорт-ноги в бэктесте моделируется как изолированная на позицию; это строже, чем unified-аккаунт, значит результат бэктеста не завышен.
-- 2026-09-27: Портфель пересчитывается раз в `rebalance_interval_hours` (8 ч); счётчики подтверждения входа и выхода растут только при появлении новой выплаты фандинга у монеты.
-- 2026-09-27: Монета считается пригодной только при наличии минимум `funding_ewma_span` выплат фандинга в истории; иначе прогноз ненадёжен.
-- 2026-09-27: Комиссии за круг: первая нога maker, вторая taker, и на входе, и на выходе, как в правилах исполнения; итого spot maker + perp taker + perp maker + spot taker.
-- 2026-09-27: Вселенная для скачивания истории выбирается по сегодняшнему суточному объёму (top-N); это даёт ошибку выжившего, отчёт об этом предупреждает.
-- 2026-09-27: Тарифы комиссий в `settings.yaml` по умолчанию равны публичным ставкам Bybit без VIP; пользователь должен сверить со своим аккаунтом.
-- 2026-09-27: Walk-forward выбирает параметры по Sharpe на обучающем отрезке, при равенстве по доходности; сетка маленькая, чтобы не переобучаться.
-- 2026-09-27: Жёсткий kill switch по дневной просадке в бэктесте закрывает всё и останавливает торговлю до следующих суток UTC.
-- 2026-09-27: Песочница разработки не пускает к `api.bybit.com` (политика сети); загрузчик проверен тестами на фейковом адаптере, бэктест на реальных данных нужно запускать там, где есть доступ.
-- 2026-09-27: Сопоставление спота и перпа только по одинаковому базовому тикеру (`BTC/USDT` и `BTC/USDT:USDT`); перпы вроде `1000PEPE` без такого спота не входят во вселенную.
-- 2026-09-27: В бэктесте predicted funding биржи не используется (без истории premium index его нельзя восстановить честно); прогноз только по истории выплат, отчёт об этом предупреждает.
-- 2026-09-27: Walk-forward берёт только полные окна обучения и проверки; хвост данных короче окна проверки в OOS не попадает, но входит в прогон по всему периоду.
-- 2026-09-27: Оценка комбинаций сетки идёт в пуле процессов с одной загрузкой данных на процесс; `--jobs 1` даёт последовательный прогон для отладки.
-- 2026-09-27: Сделки в конце периода закрываются принудительно, чтобы издержки выхода попали в результат; без этого открытая позиция выглядела бы бесплатной.
-- 2026-09-27: Команды этапов 1 и 2 существуют как заглушки с кодом выхода 3, чтобы `Makefile` и документация не менялись при их реализации.
-- 2026-09-27: Bybit блокирует запросы из региона облачной среды («access from your country» от CloudFront), а OKX, Gate.io и Bitget отдают историю фандинга лишь за 1–6 месяцев; для бэктеста добавлен адаптер публичного архива Binance (`binance_vision`) как ближайшая рабочая замена, комиссии в нём остаются Bybit, отчёт помечает данные как замену.
-- 2026-09-27: В ccxt включён `aiohttp_trust_env`, иначе библиотека игнорирует системный прокси и переменные сертификатов; для обычного компьютера без прокси это ничего не меняет.
-- 2026-09-27: Загрузчик больше не останавливается на «короткой» странице, потому что биржи отдают меньше строк, чем запрошено; конец истории определяется пустой страницей.
-- 2026-09-27: Интервал фандинга берётся из самих данных (медиана промежутков между последними выплатами), а не только из справочника биржи, потому что биржи меняют интервал по монете со временем; при расхождении отчёт предупреждает.
-- 2026-09-27: В архиве Binance нет правил лотов, поэтому для его данных шаг округления фактически отключён, минимальный размер сделки 5 $ сохранён; на итог это влияет в пределах копеек.
-- 2026-09-27: Токен Telegram-бота хранится только в локальном `.env` (права 600), в git не попадает; для алертов ещё нужен id чата, его возьмём из `getUpdates` после того, как пользователь напишет боту `/start`.
-- 2026-09-27: Порог объёма при отборе монет для скачивания равен четверти порога стратегии; сама стратегия проверяет объём на каждом шаге по истории, а жёсткий порог «по сегодняшним объёмам» выкидывал монеты, ликвидные в прошлом.
-- 2026-09-27: Горизонт удержания по умолчанию 90 периодов вместо 9: при 9 издержки круга превращались в 46% годовых и бот почти не входил, walk-forward выбрал 90 во всех восьми отрезках; сетка сдвинута к 30/90/180 и порогам 5–12%.
-- 2026-09-27: Введён резерв `cash_reserve_pct` (15% капитала), который не тратится на входы и нужен для пополнения маржи при росте цены; без него при шести и более позициях бот сокращал позиции с уплатой комиссий.
-- 2026-09-27: Спред и проскальзывание учитываются отдельной строкой, а результат по базису считается по средним ценам; раньше они были спрятаны внутри «базиса» и искажали картину издержек.
-- 2026-09-27: Стейблкоины занесены в чёрный список стратегии: у них нет фандинга, который стоило бы собирать, а в отбор по объёму они попадают.
-- 2026-09-27: Файлы `reports/latest.md` и `reports/latest.png` хранятся в git, остальные отчёты нет; так последний результат виден в репозитории, а история прогонов не раздувает его.
+- 2026-09-27: Python 3.12 installed via `uv python install`; the system 3.11 is not used because the spec requires 3.12.
+- 2026-09-27: Logging through `structlog` with the JSON renderer; its `event` key is built in, no extra code needed.
+- 2026-09-27: The backtest has no order-book history, so the spread is `backtest.assumed_spread_bps` (default = `max_spread_bps`) and slippage is linear in the share of one minute's volume; conservative.
+- 2026-09-27: Short-leg margin in the backtest is modelled as isolated per position; stricter than a unified account, so backtest results are not flattered.
+- 2026-09-27: The portfolio is re-evaluated every `rebalance_interval_hours` (8h); entry and exit confirmation counters only advance when a coin has a new funding settlement.
+- 2026-09-27: A coin is eligible only with at least `funding_ewma_span` settlements in history; otherwise the forecast is unreliable.
+- 2026-09-27: Round-trip fees: first leg maker, second leg taker, on entry and on exit, as the execution rules say; in total spot maker + perp taker + perp maker + spot taker.
+- 2026-09-27: The universe for history download is picked by today's 24h volume (top N); this carries survivorship bias, the report warns about it.
+- 2026-09-27: Default fee rates in `settings.yaml` are Bybit's public non-VIP rates; the user must check them against their own account.
+- 2026-09-27: Walk-forward picks parameters by Sharpe on the training window, ties broken by return; the grid is small to limit overfitting.
+- 2026-09-27: The hard daily-drawdown kill switch in the backtest flattens everything and halts trading until the next UTC day.
+- 2026-09-27: The development sandbox cannot reach `api.bybit.com` (network policy); the downloader is covered by tests with a fake adapter, real-data backtests must run where access exists.
+- 2026-09-27: Spot and perp are matched only by identical base ticker (`BTC/USDT` with `BTC/USDT:USDT`); perps like `1000PEPE` without such a spot pair stay out of the universe.
+- 2026-09-27: The exchange's predicted funding is not used in the backtest (it cannot be rebuilt honestly without premium-index history); the forecast uses settled payments only, the report says so.
+- 2026-09-27: Walk-forward uses full training and test windows only; a data tail shorter than the test window is left out of the OOS result but is part of the full-period run.
+- 2026-09-27: Grid candidates run in a process pool with one dataset load per process; `--jobs 1` runs sequentially for debugging.
+- 2026-09-27: Open positions are force-closed at the end of the period so exit costs are counted; otherwise an open position would look free.
+- 2026-09-27: Phase 1 and 2 commands exist as stubs with exit code 3 so the `Makefile` and docs do not change when they are implemented.
+- 2026-09-27: Bybit blocks requests from the cloud region ("access from your country" from CloudFront) and OKX, Gate.io and Bitget serve only 1-6 months of funding history; a Binance public-archive adapter (`binance_vision`) was added as the nearest working stand-in, fees stay Bybit's, the report labels the data as a stand-in.
+- 2026-09-27: `aiohttp_trust_env` is enabled in ccxt; otherwise the library ignores the system proxy and certificate variables. On a normal computer without a proxy this changes nothing.
+- 2026-09-27: The downloader no longer stops on a "short" page, because exchanges return fewer rows than requested; the end of history is an empty page.
+- 2026-09-27: The funding interval is taken from the data itself (median gap between recent settlements), not only from the exchange reference, because exchanges change it per coin over time; on a mismatch the report warns.
+- 2026-09-27: The Binance archive has no lot rules, so for its data the rounding step is effectively disabled and the 5 $ minimum order is kept; the effect on results is pennies.
+- 2026-09-27: The Telegram bot token lives only in the local `.env` (mode 600), never in git; the chat id is read from `getUpdates` after the user sends `/start` to the bot.
+- 2026-09-27: The volume threshold for selecting coins to download is a quarter of the strategy's threshold; the strategy checks volume on every bar anyway, and a hard "today's volume" filter dropped coins that were liquid in the past.
+- 2026-09-27: Default holding horizon is 90 periods instead of 9: at 9 the round-trip costs became 46% annualised and the bot almost never entered; walk-forward chose 90 in all eight folds. The grid moved to 30/90/180 and thresholds 5-12%.
+- 2026-09-27: `cash_reserve_pct` (15% of equity) is never spent on entries and is kept for margin top-ups when prices rise; without it the bot reduced positions and paid fees once six or more positions were open.
+- 2026-09-27: Spread and slippage are a separate line and the basis result is computed at mid prices; before, they were hidden inside "basis" and distorted the cost picture.
+- 2026-09-27: Stablecoins are blacklisted in the strategy: there is no funding worth harvesting on them, yet they pass the volume screen.
+- 2026-09-27: `reports/latest.md` and `reports/latest.png` are tracked in git, other reports are not; the latest result is visible in the repository without bloating it with history.
+- 2026-09-27: The program's interface (CLI, reports, chart labels, future Telegram messages) and the whole repository are in English at the user's request; chat with the user stays in Russian. The console confirmation phrase is `ENABLE LIVE TRADING`, the chat phrase stays as in the rules.

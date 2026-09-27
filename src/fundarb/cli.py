@@ -20,8 +20,8 @@ from fundarb.core.config import (
 )
 from fundarb.core.logging import configure_logging
 
-app = typer.Typer(help="fundarb: бот на фандинг-арбитраже", no_args_is_help=True)
-data_app = typer.Typer(help="История с биржи (фандинг и свечи).", no_args_is_help=True)
+app = typer.Typer(help="fundarb: delta-neutral funding-rate arbitrage bot", no_args_is_help=True)
+data_app = typer.Typer(help="Exchange history: funding rates and candles.", no_args_is_help=True)
 app.add_typer(data_app, name="data")
 
 EXIT_NOT_IMPLEMENTED = 3
@@ -29,8 +29,8 @@ SYNC_VOLUME_FRACTION = 0.25
 EXIT_NO_DATA = 2
 EXIT_LIVE_REFUSED = 4
 
-SettingsOpt = Annotated[Path, typer.Option("--settings", help="Путь к settings.yaml")]
-StrategyOpt = Annotated[Path, typer.Option("--strategy", help="Путь к strategy.yaml")]
+SettingsOpt = Annotated[Path, typer.Option("--settings", help="Path to settings.yaml")]
+StrategyOpt = Annotated[Path, typer.Option("--strategy", help="Path to strategy.yaml")]
 
 
 def _load(settings_path: Path, strategy_path: Path) -> tuple[Settings, StrategyParams]:
@@ -52,10 +52,10 @@ def _parse_dt(text: str | None) -> datetime | None:
 def data_sync(
     settings_path: SettingsOpt = DEFAULT_SETTINGS_PATH,
     strategy_path: StrategyOpt = DEFAULT_STRATEGY_PATH,
-    max_symbols: Annotated[int | None, typer.Option(help="Сколько монет качать")] = None,
-    bases: Annotated[list[str] | None, typer.Option("--base", help="Только эти монеты")] = None,
+    max_symbols: Annotated[int | None, typer.Option(help="How many coins to download")] = None,
+    bases: Annotated[list[str] | None, typer.Option("--base", help="Only these coins")] = None,
 ) -> None:
-    """Скачать или докачать историю фандинга и свечей."""
+    """Download or update funding-rate and candle history."""
     from fundarb.exchanges.factory import history_adapter
     from fundarb.marketdata.history import HistorySync
     from fundarb.marketdata.store import ParquetStore
@@ -69,9 +69,9 @@ def data_sync(
             await adapter.connect()
         except Exception as exc:
             typer.echo(
-                f"Не удалось подключиться к бирже {settings.exchange.id}: "
+                f"Could not connect to exchange {settings.exchange.id}: "
                 f"{type(exc).__name__}: {exc}\n"
-                "Проверьте интернет и доступ к API биржи."
+                "Check your internet connection and access to the exchange API."
             )
             return EXIT_NO_DATA
         try:
@@ -86,26 +86,27 @@ def data_sync(
                 min_volume_usd=params.min_24h_volume_usd * SYNC_VOLUME_FRACTION,
             )
             typer.echo(
-                f"Выбираю монеты и качаю историю с {settings.data.history_start:%Y-%m-%d}..."
+                f"Selecting coins and downloading history since "
+                f"{settings.data.history_start:%Y-%m-%d}..."
             )
             result = await sync.sync_all(
                 bases=bases, progress=lambda b: typer.echo(f"  {b}", nl=True)
             )
         except Exception as exc:
-            typer.echo(f"Ошибка при скачивании: {type(exc).__name__}: {exc}")
+            typer.echo(f"Download failed: {type(exc).__name__}: {exc}")
             return EXIT_NO_DATA
         finally:
             await adapter.close()
         ok = [b for b in result.bases if b not in result.errors]
         typer.echo(
-            f"Готово: монет {len(result.bases)}, успешно {len(ok)}, "
-            f"с ошибками {len(result.errors)}. "
-            f"Новых строк фандинга {sum(result.funding_rows.values())}, "
-            f"свечей спота {sum(result.spot_rows.values())}, "
-            f"перпа {sum(result.perp_rows.values())}."
+            f"Done: {len(result.bases)} coins, {len(ok)} succeeded, "
+            f"{len(result.errors)} failed. "
+            f"New rows: funding {sum(result.funding_rows.values())}, "
+            f"spot candles {sum(result.spot_rows.values())}, "
+            f"perp candles {sum(result.perp_rows.values())}."
         )
         for base, err in result.errors.items():
-            typer.echo(f"  ошибка {base}: {err}")
+            typer.echo(f"  error {base}: {err}")
         return 0 if ok else EXIT_NO_DATA
 
     raise typer.Exit(code=asyncio.run(_run()))
@@ -116,13 +117,13 @@ def data_sync(
 def backtest(
     settings_path: SettingsOpt = DEFAULT_SETTINGS_PATH,
     strategy_path: StrategyOpt = DEFAULT_STRATEGY_PATH,
-    jobs: Annotated[int, typer.Option(help="Параллельных процессов, 0 = все ядра")] = 0,
+    jobs: Annotated[int, typer.Option(help="Parallel processes, 0 = all cores")] = 0,
     no_walk_forward: Annotated[bool, typer.Option("--no-walk-forward")] = False,
-    start: Annotated[str | None, typer.Option(help="Начало, например 2024-06-01")] = None,
-    end: Annotated[str | None, typer.Option(help="Конец, например 2025-06-01")] = None,
-    bases: Annotated[list[str] | None, typer.Option("--base", help="Только эти монеты")] = None,
+    start: Annotated[str | None, typer.Option(help="Start date, e.g. 2024-06-01")] = None,
+    end: Annotated[str | None, typer.Option(help="End date, e.g. 2025-06-01")] = None,
+    bases: Annotated[list[str] | None, typer.Option("--base", help="Only these coins")] = None,
 ) -> None:
-    """Прогнать стратегию на скачанной истории и записать отчёт в reports/."""
+    """Run the strategy on downloaded history and write a report to reports/."""
     from fundarb.backtest.data import build_dataset, funding_environment
     from fundarb.backtest.engine import BacktestEngine
     from fundarb.backtest.metrics import compute_metrics
@@ -135,8 +136,8 @@ def backtest(
     dataset = build_dataset(store, bases)
     if not dataset.coins:
         typer.echo(
-            "Нет данных для бэктеста: история не скачана или монеты не прошли проверку.\n"
-            "Сначала выполните `make data` (нужен доступ к api.bybit.com)."
+            "No data for the backtest: history is not downloaded or no coin passed the checks.\n"
+            "Run `make data` first (requires access to the exchange API)."
         )
         for warning in dataset.coverage.warnings[:20]:
             typer.echo(f"  {warning}")
@@ -145,20 +146,20 @@ def backtest(
     start_idx = dataset.index_of(start_dt) if start_dt else 0
     end_idx = dataset.index_of(end_dt) if end_dt else len(dataset)
     if end_idx <= start_idx:
-        typer.echo("Конец периода раньше начала или вне данных.")
+        typer.echo("End of the period is before its start, or outside the data.")
         raise typer.Exit(code=EXIT_NO_DATA)
     workers = jobs if jobs > 0 else (os.cpu_count() or 1)
     typer.echo(
-        f"Монет: {len(dataset.coins)}, часов: {end_idx - start_idx}, "
-        f"{dataset.ts(start_idx):%Y-%m-%d} → {dataset.ts(end_idx - 1):%Y-%m-%d}."
+        f"Coins: {len(dataset.coins)}, hours: {end_idx - start_idx}, "
+        f"{dataset.ts(start_idx):%Y-%m-%d} to {dataset.ts(end_idx - 1):%Y-%m-%d}."
     )
     engine = BacktestEngine(dataset, params, settings.fees, params.backtest)
-    typer.echo("Прогон с параметрами по умолчанию...")
+    typer.echo("Running with default parameters...")
     default_result = engine.run(start_idx, end_idx)
     default_metrics = compute_metrics(default_result)
     wf = None
     if not no_walk_forward:
-        typer.echo(f"Walk-forward на {workers} процессах...")
+        typer.echo(f"Walk-forward on {workers} processes...")
         wf = run_walk_forward(
             dataset, params, settings.fees, params.backtest,
             jobs=workers, start_idx=start_idx, end_idx=end_idx,
@@ -181,69 +182,70 @@ def backtest(
     headline = wf.oos_metrics if wf is not None and wf.oos_metrics is not None else default_metrics
     kind = "out-of-sample" if wf is not None and wf.oos_metrics is not None else "in-sample"
     typer.echo(
-        f"Результат ({kind}): доходность {headline.total_return * 100:.1f}% за период, "
-        f"{headline.annual_return * 100:.1f}% в годовых, "
-        f"просадка {headline.max_drawdown * 100:.1f}%, сделок {headline.trades}."
+        f"Result ({kind}): {headline.total_return * 100:.1f}% over the period, "
+        f"{headline.annual_return * 100:.1f}% annualised, "
+        f"max drawdown {headline.max_drawdown * 100:.1f}%, trades {headline.trades}."
     )
     typer.echo(
-        f"Отчёт: {paths.latest_markdown} (копия {paths.markdown.name}), график {paths.latest_png}"
+        f"Report: {paths.latest_markdown} (copy {paths.markdown.name}), chart {paths.latest_png}"
     )
 
 
 # --- phase 1 / 2 stubs ---------------------------------------------------------------------------
 def _not_implemented(what: str, phase: int) -> None:
     typer.echo(
-        f"{what}: это этап {phase}, он ещё не реализован. Сейчас доступны `data sync` и `backtest`."
+        f"{what} is phase {phase} and is not implemented yet. "
+        "Available now: `data sync` and `backtest`."
     )
     raise typer.Exit(code=EXIT_NOT_IMPLEMENTED)
 
 
 @app.command()
 def paper() -> None:
-    """Бумажная торговля на живых данных (этап 1)."""
-    _not_implemented("Paper-режим", 1)
+    """Paper trading on live data (phase 1)."""
+    _not_implemented("Paper mode", 1)
 
 
 @app.command()
 def live(
-    live_flag: Annotated[bool, typer.Option("--live", help="Подтверждение флагом")] = False,
+    live_flag: Annotated[bool, typer.Option("--live", help="Explicit live flag")] = False,
 ) -> None:
-    """Реальная торговля (этап 2). Требует --live, LIVE_TRADING=true и фразу в консоли."""
+    """Live trading (phase 2). Needs --live, LIVE_TRADING=true and a typed confirmation."""
     from fundarb.control.safety import LIVE_CONFIRMATION_PHRASE, LIVE_ENV_VAR, live_gate_error
 
     typed: str | None = None
     env_value = os.environ.get(LIVE_ENV_VAR)
     if live_flag and (env_value or "").strip().lower() == "true":
-        typed = typer.prompt(f"Введите фразу «{LIVE_CONFIRMATION_PHRASE}» для подтверждения")
+        typed = typer.prompt(f'Type "{LIVE_CONFIRMATION_PHRASE}" to confirm')
     error = live_gate_error(flag=live_flag, env_value=env_value, typed_phrase=typed)
     if error is not None:
-        typer.echo(f"Реальная торговля НЕ включена: {error}.")
+        typer.echo(f"Live trading NOT enabled: {error}.")
         raise typer.Exit(code=EXIT_LIVE_REFUSED)
-    _not_implemented("Лайв-режим", 2)
+    _not_implemented("Live mode", 2)
 
 
 @app.command()
 def status() -> None:
-    """Состояние бота (этап 1)."""
-    _not_implemented("Статус", 1)
+    """Bot status (phase 1)."""
+    _not_implemented("Status", 1)
 
 
 @app.command()
 def pause() -> None:
-    """Мягкий kill switch: запретить новые входы (этап 1)."""
-    _not_implemented("Пауза", 1)
+    """Soft kill switch: no new entries (phase 1)."""
+    _not_implemented("Pause", 1)
 
 
 @app.command()
 def resume() -> None:
-    """Снять паузу (этап 1)."""
-    _not_implemented("Снятие паузы", 1)
+    """Lift the pause (phase 1)."""
+    _not_implemented("Resume", 1)
 
 
 @app.command()
 def flatten() -> None:
-    """Жёсткий kill switch: закрыть все позиции (этап 1)."""
-    _not_implemented("Закрытие всех позиций", 1)
+    """Hard kill switch: close every position (phase 1)."""
+    _not_implemented("Flatten", 1)
 
 
 if __name__ == "__main__":

@@ -117,7 +117,7 @@ def build_dataset(
         funding = store.read_funding(base)
         if spot.empty or perp.empty:
             coverage.coins.append(CoinCoverage(base, None, None, 0, 0, len(funding), 0.0))
-            coverage.warnings.append(f"{base}: нет свечей спота или перпа, монета исключена")
+            coverage.warnings.append(f"{base}: no spot or perp candles, coin excluded")
             continue
         first = max(int(spot["ts_ms"].iloc[0]), int(perp["ts_ms"].iloc[0]))
         last = min(int(spot["ts_ms"].iloc[-1]), int(perp["ts_ms"].iloc[-1]))
@@ -150,8 +150,8 @@ def build_dataset(
             typical = float(np.median(gaps))
             if abs(typical - rules.funding_interval_hours) > 0.25 * rules.funding_interval_hours:
                 coverage.warnings.append(
-                    f"{base}: интервал фандинга по данным {typical:g} ч, "
-                    f"в справочнике {rules.funding_interval_hours:g} ч; беру из данных"
+                    f"{base}: funding interval from data is {typical:g}h, "
+                    f"reference says {rules.funding_interval_hours:g}h; using the data"
                 )
         valid = ~np.isnan(spot_close) & ~np.isnan(perp_close)
         bars = int(valid.sum())
@@ -160,7 +160,7 @@ def build_dataset(
                 CoinCoverage(base, None, None, bars, 0, len(f_rate), rules.funding_interval_hours)
             )
             coverage.warnings.append(
-                f"{base}: всего {bars} часов данных, меньше минимума, исключена"
+                f"{base}: only {bars} hours of data, below the minimum, excluded"
             )
             continue
         vidx = np.flatnonzero(valid)
@@ -189,9 +189,9 @@ def build_dataset(
             )
         )
         if missing > 0.02 * span_bars:
-            coverage.warnings.append(f"{base}: пропущено {missing} часов из {span_bars}")
+            coverage.warnings.append(f"{base}: {missing} of {span_bars} hours missing")
         if len(f_rate) == 0:
-            coverage.warnings.append(f"{base}: нет истории фандинга")
+            coverage.warnings.append(f"{base}: no funding history")
     return BacktestDataset(index_ms, tf_ms, coins, coverage)
 
 

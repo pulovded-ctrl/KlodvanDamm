@@ -1,73 +1,73 @@
-# Отчёт бэктеста: фандинг-арбитраж
+# Backtest report: funding-rate arbitrage
 
-Сформирован 2026-09-27 10:37 UTC. Биржа: `binance_vision`. Стартовый капитал: 10 000 $.
+Generated 2026-09-27 15:41 UTC. Exchange: `binance_vision`. Initial capital: 10 000 $.
 
-## Коротко
+## Summary
 
-Результат по out-of-sample отрезкам walk-forward: положительный, 0.6% в годовых при просадке 0.2% и 27 сделках. Издержки съели 46.0% валового дохода.
+Result on the out-of-sample walk-forward folds: positive, 0.6% annualised with a max drawdown of 0.2% over 27 trades. Costs took 46.0% of gross income.
 
-## Out-of-sample (главные цифры)
+## Out-of-sample (the numbers that matter)
 
-Сетка из 18 комбинаций, 8 отрезков. Параметры подбирались только на обучающем отрезке и проверялись на следующем за ним.
+Grid of 18 combinations, 8 folds. Parameters were tuned on the training window only and evaluated on the window that follows it.
 
-| Показатель | Значение |
+| Metric | Value |
 |---|---|
-| Период | 2024-07-01 → 2026-07-02 (730 дней) |
-| Капитал в начале и в конце | 10 000 $ → 10 119 $ |
-| Доходность за период | 1.2% |
-| Доходность в годовых | 0.6% |
-| Sharpe (по дневным данным) | 2.37 |
-| Максимальная просадка | 0.2% |
-| Сделок (полных кругов) | 27, частичных сокращений 6 |
-| Доля прибыльных сделок | 59.3% |
-| Средняя длительность позиции | 15.9 дней |
-| Время в рынке | 21.8% |
-| Оборот в год (к капиталу) | 2.6x |
-| Получено фандинга | 193 $ |
-| Результат по базису (спот минус перп, по средним ценам) | 28 $ |
-| Комиссии биржи | 68 $ |
-| Спред и проскальзывание | 34 $ |
-| Доля всех издержек в валовом доходе | 46.0% |
-| Стоп-краны, пополнения маржи, сокращения | 0, 49, 6 |
-| Отклонённых входов (не хватило денег или размера) | 0 |
+| Period | 2024-07-01 to 2026-07-02 (730 days) |
+| Capital, start to end | 10 000 $ to 10 119 $ |
+| Return over the period | 1.2% |
+| Annualised return | 0.6% |
+| Sharpe (daily returns) | 2.37 |
+| Max drawdown | 0.2% |
+| Trades (full round trips) | 27, partial reductions 6 |
+| Winning trades | 59.3% |
+| Average holding time | 15.9 days |
+| Time in market | 21.8% |
+| Annual turnover (x capital) | 2.6x |
+| Funding received | 193 $ |
+| Basis P&L (spot minus perp, at mid prices) | 28 $ |
+| Exchange fees | 68 $ |
+| Spread and slippage | 34 $ |
+| All costs as a share of gross income | 46.0% |
+| Hard stops, margin top-ups, reductions | 0, 49, 6 |
+| Rejected entries (not enough cash or size) | 0 |
 
-| Отрезок | Обучение | Проверка | Выбранные параметры | Sharpe обуч. | Доход обуч. | Доход провер. | Просадка провер. | Сделок провер. |
+| Fold | Training | Test | Chosen parameters | Train Sharpe | Train return | Test return | Test drawdown | Test trades |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 2024-01-01 → 2024-07-01 | 2024-07-01 → 2024-09-30 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 11.46 | 5.3% | 0.0% | -0.0% | 0 |
-| 2 | 2024-04-01 → 2024-09-30 | 2024-09-30 → 2024-12-31 | entry_threshold_apr=0.12, exit_threshold_apr=0.04, hold_horizon_periods=180 | 3.06 | 0.5% | 1.3% | 0.1% | 7 |
-| 3 | 2024-07-01 → 2024-12-31 | 2024-12-31 → 2025-04-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 6.14 | 1.3% | 0.1% | 0.0% | 2 |
-| 4 | 2024-09-30 → 2025-04-01 | 2025-04-01 → 2025-07-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 7.33 | 1.6% | -0.1% | 0.1% | 1 |
-| 5 | 2024-12-31 → 2025-07-01 | 2025-07-01 → 2025-10-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 0.45 | 0.0% | -0.0% | 0.1% | 9 |
-| 6 | 2025-04-01 → 2025-10-01 | 2025-10-01 → 2025-12-31 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | -0.90 | -0.1% | -0.0% | 0.2% | 7 |
-| 7 | 2025-07-01 → 2025-12-31 | 2025-12-31 → 2026-04-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | -0.07 | -0.0% | 0.0% | -0.0% | 0 |
-| 8 | 2025-10-01 → 2026-04-01 | 2026-04-01 → 2026-07-02 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | -0.24 | -0.0% | -0.1% | 0.1% | 1 |
+| 1 | 2024-01-01 to 2024-07-01 | 2024-07-01 to 2024-09-30 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 11.46 | 5.3% | 0.0% | -0.0% | 0 |
+| 2 | 2024-04-01 to 2024-09-30 | 2024-09-30 to 2024-12-31 | entry_threshold_apr=0.12, exit_threshold_apr=0.04, hold_horizon_periods=180 | 3.06 | 0.5% | 1.3% | 0.1% | 7 |
+| 3 | 2024-07-01 to 2024-12-31 | 2024-12-31 to 2025-04-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 6.14 | 1.3% | 0.1% | 0.0% | 2 |
+| 4 | 2024-09-30 to 2025-04-01 | 2025-04-01 to 2025-07-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 7.33 | 1.6% | -0.1% | 0.1% | 1 |
+| 5 | 2024-12-31 to 2025-07-01 | 2025-07-01 to 2025-10-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | 0.45 | 0.0% | -0.0% | 0.1% | 9 |
+| 6 | 2025-04-01 to 2025-10-01 | 2025-10-01 to 2025-12-31 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | -0.90 | -0.1% | -0.0% | 0.2% | 7 |
+| 7 | 2025-07-01 to 2025-12-31 | 2025-12-31 to 2026-04-01 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | -0.07 | -0.0% | 0.0% | -0.0% | 0 |
+| 8 | 2025-10-01 to 2026-04-01 | 2026-04-01 to 2026-07-02 | entry_threshold_apr=0.12, exit_threshold_apr=0.02, hold_horizon_periods=180 | -0.24 | -0.0% | -0.1% | 0.1% | 1 |
 
-## Весь период с параметрами по умолчанию (для справки, in-sample)
+## Full period with default parameters (reference, in-sample)
 
-| Показатель | Значение |
+| Metric | Value |
 |---|---|
-| Период | 2024-01-01 → 2026-08-31 (974 дней) |
-| Капитал в начале и в конце | 10 000 $ → 10 515 $ |
-| Доходность за период | 5.1% |
-| Доходность в годовых | 1.9% |
-| Sharpe (по дневным данным) | 4.11 |
-| Максимальная просадка | 0.4% |
-| Сделок (полных кругов) | 46, частичных сокращений 14 |
-| Доля прибыльных сделок | 58.7% |
-| Средняя длительность позиции | 19.7 дней |
-| Время в рынке | 22.0% |
-| Оборот в год (к капиталу) | 3.1x |
-| Получено фандинга | 636 $ |
-| Результат по базису (спот минус перп, по средним ценам) | 54 $ |
-| Комиссии биржи | 119 $ |
-| Спред и проскальзывание | 57 $ |
-| Доля всех издержек в валовом доходе | 25.4% |
-| Стоп-краны, пополнения маржи, сокращения | 0, 88, 14 |
-| Отклонённых входов (не хватило денег или размера) | 0 |
+| Period | 2024-01-01 to 2026-08-31 (974 days) |
+| Capital, start to end | 10 000 $ to 10 515 $ |
+| Return over the period | 5.1% |
+| Annualised return | 1.9% |
+| Sharpe (daily returns) | 4.11 |
+| Max drawdown | 0.4% |
+| Trades (full round trips) | 46, partial reductions 14 |
+| Winning trades | 58.7% |
+| Average holding time | 19.7 days |
+| Time in market | 22.0% |
+| Annual turnover (x capital) | 3.1x |
+| Funding received | 636 $ |
+| Basis P&L (spot minus perp, at mid prices) | 54 $ |
+| Exchange fees | 119 $ |
+| Spread and slippage | 57 $ |
+| All costs as a share of gross income | 25.4% |
+| Hard stops, margin top-ups, reductions | 0, 88, 14 |
+| Rejected entries (not enough cash or size) | 0 |
 
-### По монетам (весь период, параметры по умолчанию)
+### By coin (full period, default parameters)
 
-| Монета | Сделок | Фандинг | Издержки | Итог |
+| Coin | Trades | Funding | Costs | Net |
 |---|---|---|---|---|
 | WLD | 3 | 132 $ | 8 $ | 123 $ |
 | FIL | 1 | 91 $ | 3 $ | 89 $ |
@@ -81,13 +81,13 @@
 | ETH | 2 | 23 $ | 6 $ | 17 $ |
 | ADA | 1 | 19 $ | 3 $ | 16 $ |
 | TAO | 1 | 8 $ | 3 $ | 5 $ |
-| остальные 13 | | | | -29 $ |
+| other 13 | | | | -29 $ |
 
-## Среда фандинга: сколько вообще платили в этот период
+## Funding environment: what the market actually paid
 
-По всем монетам и выплатам: фандинг выше 15% годовых был в 4.4% выплат, выше 50% в 1.6%, отрицательный в 26.5%. Стратегия зарабатывает только на выплатах выше порога входа после издержек, остальное время она ждёт в деньгах.
+Across all coins and settlements: funding above 15% annualised in 4.4% of settlements, above 50% in 1.6%, negative in 26.5%. The strategy only earns on settlements above the entry threshold after costs; the rest of the time it waits in cash.
 
-| Монета | Выплат | Средний фандинг, годовых | Медиана | Доля выше 15% | Доля отрицательных |
+| Coin | Settlements | Mean funding, annualised | Median | Share above 15% | Share negative |
 |---|---|---|---|---|---|
 | GIGGLE | 1959 | 16.1% | 10.9% | 4.6% | 8.5% |
 | ASTER | 2078 | 10.5% | 10.9% | 4.3% | 18.1% |
@@ -104,30 +104,30 @@
 | FIL | 2922 | 6.7% | 10.9% | 8.2% | 22.1% |
 | AAVE | 2922 | 6.6% | 7.5% | 5.3% | 20.7% |
 | XRP | 2922 | 6.5% | 7.2% | 7.1% | 26.4% |
-| ... ещё 45 монет | | | | | |
+| ... 45 more coins | | | | | |
 
-## Покрытие данных
+## Data coverage
 
-- Источник: биржа `binance_vision`, таймфрейм `1h`, последняя докачка `2026-09-27T10:36:39.968172+00:00`.
-- Правило отбора монет: top by min(spot, perp) 24h volume at selection time.
-- Монет в данных: 60, пригодных: 60.
-- Диапазон: 2024-01-01 → 2026-08-31.
-- **Предупреждения (2):**
-  - DEXE: интервал фандинга по данным 4 ч, в справочнике 1 ч; беру из данных
-  - ONG: интервал фандинга по данным 4 ч, в справочнике 1 ч; беру из данных
+- Source: exchange `binance_vision`, timeframe `1h`, last sync `2026-09-27T10:36:39.968172+00:00`.
+- Coin selection rule: top by min(spot, perp) 24h volume at selection time.
+- Coins in data: 60, usable: 60.
+- Range: 2024-01-01 to 2026-08-31.
+- **Warnings (2):**
+  - DEXE: funding interval from data is 4h, reference says 1h; using the data
+  - ONG: funding interval from data is 4h, reference says 1h; using the data
 
-## Допущения и оговорки
+## Assumptions and caveats
 
-- **Источник данных: Данные из публичного архива Binance как замена Bybit. Ставки фандинга на Bybit отличаются.**
-- Комиссии: спот maker 10.0 bps, taker 10.0 bps; перп maker 2.0 bps, taker 5.5 bps. Проверьте свой тариф на бирже, по умолчанию стоят публичные ставки без VIP.
-- Спред: истории стакана нет, взят 5.0 bps на каждой ноге.
-- Проскальзывание: 100.0 bps на каждые 100% минутного объёма.
-- Маржа шорт-ноги изолированная, поддерживающая ставка 1.00%. Это строже unified-аккаунта.
-- Predicted funding биржи в бэктесте недоступен, прогноз только по истории. В живой торговле он будет ограничивать прогноз сверху.
-- Вселенная монет выбрана по объёму на момент скачивания: есть ошибка выжившего, результат может быть завышен.
-- Позиции в конце периода закрываются принудительно, чтобы учесть все издержки.
+- **Data source: Binance public archive used as a stand-in for Bybit. Bybit funding rates differ.**
+- Fees: spot maker 10.0 bps, taker 10.0 bps; perp maker 2.0 bps, taker 5.5 bps. Check your own tier on the exchange; defaults are public non-VIP rates.
+- Spread: no order-book history, 5.0 bps assumed on each leg.
+- Slippage: 100.0 bps per 100% of one minute's volume.
+- Short-leg margin is isolated, maintenance rate 1.00%. Stricter than a unified account.
+- The exchange's predicted funding is not available in the backtest; the forecast uses history only. Live trading caps the forecast with it.
+- The coin universe was picked by volume at download time: survivorship bias, results may be flattered.
+- Positions are force-closed at the end of the period so every cost is counted.
 
-## Параметры стратегии
+## Strategy parameters
 
 ```yaml
 entry_threshold_apr: 0.12
@@ -158,4 +158,4 @@ rebalance_interval_hours: 8
 blacklist: ['USDC', 'FDUSD', 'USD1', 'TUSD', 'DAI', 'USDE', 'BUSD']
 ```
 
-![Кривая капитала](latest.png)
+![Equity curve](latest.png)

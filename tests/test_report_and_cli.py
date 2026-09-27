@@ -36,7 +36,7 @@ def test_report_files_and_content(
     dataset = build_dataset(ParquetStore(tmp_path / "data", "fake"))
     result = BacktestEngine(dataset, params, FEES, params.backtest).run()
     metrics = compute_metrics(result)
-    wf = WalkForwardResult(skipped_reason="данных мало")
+    wf = WalkForwardResult(skipped_reason="too little data")
     inputs = ReportInputs(
         exchange="fake",
         coverage=dataset.coverage,
@@ -51,12 +51,12 @@ def test_report_files_and_content(
     for p in (paths.markdown, paths.png, paths.json, paths.latest_markdown, paths.latest_png):
         assert p.exists() and p.stat().st_size > 0
     text = paths.latest_markdown.read_text(encoding="utf-8")
-    assert "Walk-forward не проводился: данных мало" in text
-    assert "Покрытие данных" in text
+    assert "Walk-forward skipped: too little data" in text
+    assert "Data coverage" in text
     assert "BTC" in text
     assert "Sharpe" in text
     md = render_markdown(dataclasses.replace(inputs, walk_forward=None))
-    assert "Walk-forward отключён" in md
+    assert "Walk-forward disabled" in md
 
 
 def _write_settings(tmp_path: Path) -> Path:
@@ -72,7 +72,7 @@ def test_cli_backtest_without_data_exits_2(tmp_path: Path) -> None:
     settings = _write_settings(tmp_path)
     res = runner.invoke(app, ["backtest", "--settings", str(settings)])
     assert res.exit_code == EXIT_NO_DATA
-    assert "Нет данных" in res.output
+    assert "No data" in res.output
 
 
 def test_cli_backtest_on_synthetic_store(tmp_path: Path, start_dt: datetime) -> None:
@@ -82,7 +82,7 @@ def test_cli_backtest_on_synthetic_store(tmp_path: Path, start_dt: datetime) -> 
         app, ["backtest", "--settings", str(settings), "--no-walk-forward", "--jobs", "1"]
     )
     assert res.exit_code == 0, res.output
-    assert "Отчёт:" in res.output
+    assert "Report:" in res.output
     assert (tmp_path / "reports" / "latest.md").exists()
     res2 = runner.invoke(
         app,
@@ -90,7 +90,7 @@ def test_cli_backtest_on_synthetic_store(tmp_path: Path, start_dt: datetime) -> 
          "--end", "2025-02-01"],
     )  # fmt: skip
     assert res2.exit_code == 0, res2.output
-    assert "walk-forward" in res2.output.lower() or "Walk-forward" in res2.output
+    assert "walk-forward" in res2.output.lower()
     bad = runner.invoke(
         app, ["backtest", "--settings", str(settings), "--start", "2025-03-01", "--jobs", "1"]
     )
@@ -108,21 +108,21 @@ def test_cli_data_sync_connection_failure(tmp_path: Path, monkeypatch: pytest.Mo
     settings = _write_settings(tmp_path)
     res = runner.invoke(app, ["data", "sync", "--settings", str(settings)])
     assert res.exit_code == EXIT_NO_DATA
-    assert "Не удалось подключиться" in res.output
+    assert "Could not connect" in res.output
 
 
 def test_stubs_report_phase(tmp_path: Path) -> None:
     for cmd in ("paper", "status", "pause", "resume", "flatten"):
         res = runner.invoke(app, [cmd])
         assert res.exit_code == EXIT_NOT_IMPLEMENTED, cmd
-        assert "не реализован" in res.output
+        assert "not implemented" in res.output
 
 
 def test_live_gate_function() -> None:
     assert live_gate_error(flag=False, env_value="true", typed_phrase=LIVE_CONFIRMATION_PHRASE)
     assert live_gate_error(flag=True, env_value="false", typed_phrase=LIVE_CONFIRMATION_PHRASE)
     assert live_gate_error(flag=True, env_value="true", typed_phrase=None)
-    assert live_gate_error(flag=True, env_value="true", typed_phrase="да")
+    assert live_gate_error(flag=True, env_value="true", typed_phrase="yes")
     assert (
         live_gate_error(flag=True, env_value="TRUE ", typed_phrase=LIVE_CONFIRMATION_PHRASE) is None
     )
@@ -131,12 +131,12 @@ def test_live_gate_function() -> None:
 def test_cli_live_is_locked(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LIVE_TRADING", raising=False)
     res = runner.invoke(app, ["live"])
-    assert res.exit_code == EXIT_LIVE_REFUSED and "нет флага" in res.output
+    assert res.exit_code == EXIT_LIVE_REFUSED and "--live flag" in res.output
     res = runner.invoke(app, ["live", "--live"])
     assert res.exit_code == EXIT_LIVE_REFUSED and "LIVE_TRADING" in res.output
     monkeypatch.setenv("LIVE_TRADING", "true")
-    res = runner.invoke(app, ["live", "--live"], input="неправильная фраза\n")
-    assert res.exit_code == EXIT_LIVE_REFUSED and "не совпала" in res.output
+    res = runner.invoke(app, ["live", "--live"], input="wrong phrase\n")
+    assert res.exit_code == EXIT_LIVE_REFUSED and "did not match" in res.output
     res = runner.invoke(app, ["live", "--live"], input=LIVE_CONFIRMATION_PHRASE + "\n")
     assert res.exit_code == EXIT_NOT_IMPLEMENTED  # gate open, phase 2 not built yet
     assert os.environ["LIVE_TRADING"] == "true"

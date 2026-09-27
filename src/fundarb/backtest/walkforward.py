@@ -161,8 +161,8 @@ def run_walk_forward(
     out = WalkForwardResult(grid_size=len(candidates))
     if not folds:
         out.skipped_reason = (
-            f"данных меньше, чем {wf.train_months + wf.test_months} месяцев, "
-            "walk-forward невозможен"
+            f"less than {wf.train_months + wf.test_months} months of data, "
+            "walk-forward is not possible"
         )
         return out
 
@@ -179,7 +179,7 @@ def run_walk_forward(
         if best_train.trades == 0:
             best_overrides, note = (
                 {},
-                "на обучении ни одна комбинация не торговала, взяты параметры по умолчанию",
+                "no grid candidate traded in training, defaults used",
             )
             best_train = compute_metrics(
                 BacktestEngine(dataset, params, fees, settings).run(
