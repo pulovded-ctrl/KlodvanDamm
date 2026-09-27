@@ -18,6 +18,8 @@ build/
 data/
 reports/*
 !reports/.gitkeep
+!reports/latest.md
+!reports/latest.png
 
 # editors / os
 .vscode/
