@@ -156,3 +156,59 @@ class Signal:
     expected_net_apr: float
     eligible: bool
     reasons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class OrderBookLevel:
+    price: float
+    qty: float
+
+
+@dataclass(frozen=True, slots=True)
+class OrderBook:
+    symbol: str
+    ts_ms: int
+    bids: tuple[OrderBookLevel, ...]  # best first
+    asks: tuple[OrderBookLevel, ...]  # best first
+
+
+class OrderSide(StrEnum):
+    BUY = "buy"
+    SELL = "sell"
+
+
+class OrderType(StrEnum):
+    LIMIT_POST_ONLY = "limit_post_only"
+    IOC = "ioc"
+    MARKET = "market"
+
+
+@dataclass(frozen=True, slots=True)
+class OrderRequest:
+    symbol: str
+    side: OrderSide
+    qty: float
+    order_type: OrderType
+    client_order_id: str
+    price: float | None = None
+    reduce_only: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class OrderResult:
+    order_id: str
+    client_order_id: str
+    symbol: str
+    filled_qty: float
+    avg_price: float | None
+    fee_usd: float
+    status: str
+
+
+@dataclass(frozen=True, slots=True)
+class PerpPosition:
+    symbol: str
+    qty: float  # signed: negative for short
+    entry_price: float
+    liquidation_price: float | None
+    margin_usd: float | None
