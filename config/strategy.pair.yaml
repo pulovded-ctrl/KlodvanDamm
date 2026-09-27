@@ -1,9 +1,9 @@
 # Strategy parameters for the cross-venue perp-perp study (see config/settings.pair.yaml).
 entry_threshold_apr: 0.12
-exit_threshold_apr: 0.04
+exit_threshold_apr: 0.02   # walk-forward chose 0.02 in every fold
 rotation_margin_apr: 0.05
-confirm_periods: 3
-funding_ewma_span: 6
+confirm_periods: 6         # walk-forward: 6 in most folds; the cross-venue spread is noisy
+funding_ewma_span: 24      # walk-forward chose 24 in 7 of 8 folds: smooth the noisy spread
 hold_horizon_periods: 90   # walk-forward chose 90 in every fold; 9 made costs eat 46% apr
 min_24h_volume_usd: 5000000      # perp-only venues are thinner than spot+perp Binance
 max_spread_bps: 5

@@ -72,7 +72,8 @@ identical, so that report is an estimate, not an exact Bybit result.
 
 ## How to read the report
 
-Open `reports/latest.md`. The lines that matter:
+Open `reports/latest.md` (spot long + perp short) or `reports/latest_pair.md` (cross-venue
+perp-perp). The lines that matter:
 
 - **Out-of-sample** is the result on data the strategy "did not see" while parameters were
   tuned. Look at it, not at in-sample.

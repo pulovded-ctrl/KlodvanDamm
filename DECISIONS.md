@@ -40,3 +40,7 @@ One line per decision. Format: date, decision, reason.
 - 2026-09-27: Hyperliquid per-bar volumes exist only for the recent window; older bars use the sync-time 24h volume as a constant proxy for the depth caps.
 - 2026-09-27: The history sync downloads several coins concurrently (default 4); adapters keep their own pacing, so this only overlaps network latency. Adapters may declare their own page sizes.
 - 2026-09-27: The spread eligibility check has a tolerance of 1e-6 bps: bid/ask arithmetic on fractional prices produced 5.000000000001 against a limit of 5.
+- 2026-09-27: Pair study result (Binance archive vs Hyperliquid funding, 24 coins, 2024-01 to 2026-08): out-of-sample 2.6% a year at 0.2% max drawdown after walk-forward, versus 0.5% a year for spot+perp on the same period; with the unsmoothed defaults the pair made only 0.8% a year because costs took 80% of gross.
+- 2026-09-27: Walk-forward chose `funding_ewma_span` 24 and `hold_horizon_periods` 90 in every fold and `exit_threshold_apr` 0.02 everywhere for the pair, so `config/strategy.pair.yaml` uses those defaults; the cross-venue spread is noisy and needs smoothing.
+- 2026-09-27: Execution costs decide the pair scheme: full-period in-sample return goes from 0.9% a year (taker second leg, 5 bps spreads) to 2.2% (2 bps spreads), 3.1% (maker-only both legs) and 4.4% (maker-only, 2 bps spreads); these are sensitivity runs, not the reported result.
+- 2026-09-27: Reports are written per mode: `reports/latest.md` for spot+perp, `reports/latest_pair.md` for the cross-venue pair, both tracked in git.

@@ -18,3 +18,5 @@
 - Interface and repository switched to English.
 - Cross-venue perp-perp study: Hyperliquid history adapter, pair dataset (both directions per coin, net spread per period), pair engine with per-venue cash and margin on both legs, pair mode in `fundarb backtest`, `config/settings.pair.yaml`, `config/strategy.pair.yaml`, targets `make data-hyperliquid` and `make backtest-pair`.
 - History sync downloads coins concurrently; adapters can set page sizes.
+- Walk-forward grid generalised to any tunable parameter; smoothing and confirmations tuned too.
+- Pair study run on real data (Binance archive plus Hyperliquid, 24 coins): `reports/latest_pair.md`; pair defaults updated from walk-forward.

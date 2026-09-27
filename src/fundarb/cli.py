@@ -288,6 +288,7 @@ def _backtest_pair(
             mode="cross-venue perp-perp (long one venue, short the other)",
         ),
         settings.reports_dir,
+        latest="latest_pair",
     )
     headline = wf.oos_metrics if wf is not None and wf.oos_metrics is not None else default_metrics
     kind = "out-of-sample" if wf is not None and wf.oos_metrics is not None else "in-sample"

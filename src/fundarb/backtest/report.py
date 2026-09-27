@@ -358,17 +358,20 @@ def render_png(inp: ReportInputs, path: Path) -> None:
     plt.close(fig)
 
 
-def write_report(inp: ReportInputs, out_dir: Path) -> ReportPaths:
+def write_report(inp: ReportInputs, out_dir: Path, latest: str = "latest") -> ReportPaths:
+    """Writes a timestamped report plus a copy under ``latest`` (e.g. ``latest_pair``)."""
     out_dir.mkdir(parents=True, exist_ok=True)
     when = inp.generated_at or datetime.now(UTC)
-    stem = f"backtest_{when.strftime('%Y%m%d_%H%M%S')}"
+    stem = f"{latest.replace('latest', 'backtest')}_{when.strftime('%Y%m%d_%H%M%S')}"
     md_path, png_path, json_path = (out_dir / f"{stem}.{ext}" for ext in ("md", "png", "json"))
-    latest_md, latest_png = out_dir / "latest.md", out_dir / "latest.png"
+    latest_md, latest_png = out_dir / f"{latest}.md", out_dir / f"{latest}.png"
     render_png(inp, png_path)
     shutil.copyfile(png_path, latest_png)
     markdown = render_markdown(inp).replace("latest.png", png_path.name)
     md_path.write_text(markdown, encoding="utf-8")
-    latest_md.write_text(render_markdown(inp), encoding="utf-8")
+    latest_md.write_text(
+        render_markdown(inp).replace("latest.png", latest_png.name), encoding="utf-8"
+    )
     payload = {
         "generated_at": when.isoformat(),
         "exchange": inp.exchange,

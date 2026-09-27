@@ -24,8 +24,9 @@
 - [x] Pair dataset: both directions per coin, net funding spread per 8h period
 - [x] Pair engine: per-venue cash, margin on both legs, daily cash equalisation
 - [x] Pair mode in the CLI, settings and strategy files, Makefile targets
-- [ ] Download Hyperliquid funding for the coins shared with the Binance archive
-- [ ] Run the pair backtest and explain the result to the user
+- [x] Download Hyperliquid funding for the coins shared with the Binance archive (24 coins with history)
+- [x] Run the pair backtest and explain the result to the user: `reports/latest_pair.md`
+- [ ] User decides which scheme goes to phase 1
 
 ## Phase 1: paper mode on live data
 

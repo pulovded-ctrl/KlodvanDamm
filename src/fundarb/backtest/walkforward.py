@@ -214,6 +214,9 @@ def run_walk_forward(
                 factory(dataset, params, fees, settings).run(fold.train_start, fold.train_end)
             )
         tuned = params.with_overrides(**best_overrides)
+        best_overrides = {
+            k: getattr(tuned, k) for k in best_overrides
+        }  # typed values for the report
         test = factory(dataset, tuned, fees, settings).run(fold.test_start, fold.test_end)
         test_metrics = compute_metrics(test)
         out.folds.append(

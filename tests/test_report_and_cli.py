@@ -180,8 +180,9 @@ def test_cli_pair_backtest(tmp_path: Path, start_dt: datetime) -> None:
     )  # fmt: skip
     assert res.exit_code == 0, res.output
     assert "Pairs: 2 (1 coins, both directions)" in res.output
-    text = (tmp_path / "reports" / "latest.md").read_text(encoding="utf-8")
+    text = (tmp_path / "reports" / "latest_pair.md").read_text(encoding="utf-8")
     assert "cross-venue perp-perp" in text and "BTC:va>vb" in text
+    assert "latest_pair.png" in text
     # spot strategy file against pair settings is refused
     bad = runner.invoke(app, ["backtest", "--settings", str(settings_path), "--jobs", "1"])
     assert bad.exit_code == EXIT_NO_DATA and "long_leg: perp" in bad.output

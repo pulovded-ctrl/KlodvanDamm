@@ -20,6 +20,8 @@ reports/*
 !reports/.gitkeep
 !reports/latest.md
 !reports/latest.png
+!reports/latest_pair.md
+!reports/latest_pair.png
 
 # editors / os
 .vscode/
