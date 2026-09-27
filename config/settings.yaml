@@ -1,0 +1,31 @@
+# Environment settings. Strategy parameters live in config/strategy.yaml.
+mode: paper                # paper | live. Live additionally requires LIVE_TRADING=true, --live and a typed phrase.
+
+exchange:
+  id: bybit
+  testnet: false
+  unified_account: true    # Bybit Unified Trading Account: spot coins can serve as collateral.
+
+# Fee schedule in basis points (1 bps = 0.01%). CHECK YOUR OWN TIER in Bybit account settings.
+# Defaults below are Bybit non-VIP public rates at the time of writing; verify before trusting.
+fees:
+  spot_maker_bps: 10.0
+  spot_taker_bps: 10.0
+  perp_maker_bps: 2.0
+  perp_taker_bps: 5.5
+
+data:
+  dir: data
+  timeframe: 1h
+  history_start: "2024-01-01"
+  max_symbols: 60          # universe cap when syncing history, ranked by current 24h volume
+
+reports_dir: reports
+ledger_db: data/ledger.sqlite
+
+telegram:
+  enabled: false
+
+log:
+  level: INFO
+  json_output: true

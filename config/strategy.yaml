@@ -1,0 +1,43 @@
+# Strategy parameters. Starting values, NOT tuned. Walk-forward in the backtest tunes a subset.
+entry_threshold_apr: 0.12
+exit_threshold_apr: 0.04
+rotation_margin_apr: 0.05
+confirm_periods: 3
+funding_ewma_span: 6
+hold_horizon_periods: 9
+min_24h_volume_usd: 20000000
+max_spread_bps: 5
+max_order_pct_of_1min_volume: 5
+max_hedge_slippage_bps: 10
+leg_timeout_sec: 2
+unhedged_max_sec: 10
+max_asset_pct: 10
+max_positions: 8
+min_notional_usd: 100
+max_leverage_perp: 2.0
+min_liq_distance_pct: 40
+stale_data_sec: 5
+daily_dd_hard_stop_pct: 3
+reconcile_interval_sec: 60
+api_error_rate_breaker:
+  max_errors: 5
+  window_sec: 60
+stablecoin_depeg_pct: 1
+event_close_before_hours: 24
+rebalance_interval_hours: 8   # portfolio re-evaluation cadence (one funding period on 8h symbols)
+
+blacklist: []                 # base coins never traded, e.g. ["LUNA"]
+exchange_events: []           # - {base: "XYZ", kind: "delisting", at: "2026-01-01T00:00:00Z"}
+
+backtest:
+  initial_capital_usd: 10000
+  assumed_spread_bps: 5.0     # no order-book history in backtest: assume the worst allowed spread
+  slippage_coef_bps: 100.0    # slippage_bps = coef * order_notional / minute_volume_usd (5% of a minute -> 5 bps)
+  maintenance_margin_rate: 0.01
+  walk_forward:
+    train_months: 6
+    test_months: 3
+    grid:
+      entry_threshold_apr: [0.08, 0.12, 0.20]
+      exit_threshold_apr: [0.02, 0.04, 0.06]
+      hold_horizon_periods: [9, 30, 90]
