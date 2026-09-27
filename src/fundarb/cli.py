@@ -25,6 +25,7 @@ data_app = typer.Typer(help="История с биржи (фандинг и с�
 app.add_typer(data_app, name="data")
 
 EXIT_NOT_IMPLEMENTED = 3
+SYNC_VOLUME_FRACTION = 0.25
 EXIT_NO_DATA = 2
 EXIT_LIVE_REFUSED = 4
 
@@ -80,7 +81,9 @@ def data_sync(
                 start=settings.data.history_start,
                 timeframe=settings.data.timeframe,
                 max_symbols=max_symbols or settings.data.max_symbols,
-                min_volume_usd=params.min_24h_volume_usd,
+                # looser than the strategy's own volume rule: the strategy re-checks volume on
+                # every bar, the sync must not drop coins that were liquid in the past
+                min_volume_usd=params.min_24h_volume_usd * SYNC_VOLUME_FRACTION,
             )
             typer.echo(
                 f"Выбираю монеты и качаю историю с {settings.data.history_start:%Y-%m-%d}..."
