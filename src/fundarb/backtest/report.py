@@ -53,6 +53,7 @@ class ReportInputs:
     generated_at: datetime | None = None
     exchange_note: str = ""
     funding_env: list[FundingEnv] | None = None
+    mode: str = "spot long + perp short"
 
 
 def pct(value: float, digits: int = 1) -> str:
@@ -255,7 +256,7 @@ def render_markdown(inp: ReportInputs) -> str:
         "# Backtest report: funding-rate arbitrage",
         "",
         f"Generated {when.strftime('%Y-%m-%d %H:%M UTC')}. Exchange: `{inp.exchange}`. "
-        f"Initial capital: {usd(inp.settings.initial_capital_usd)}.",
+        f"Mode: {inp.mode}. Initial capital: {usd(inp.settings.initial_capital_usd)}.",
         "",
         "## Summary",
         "",

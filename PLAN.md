@@ -18,6 +18,15 @@
       `reports/latest.md`
 - [x] Report to the user in plain language
 
+## Study before phase 1: cross-venue perp-perp (user's choice)
+
+- [x] Hyperliquid history adapter (funding hourly since 2023, recent candles only)
+- [x] Pair dataset: both directions per coin, net funding spread per 8h period
+- [x] Pair engine: per-venue cash, margin on both legs, daily cash equalisation
+- [x] Pair mode in the CLI, settings and strategy files, Makefile targets
+- [ ] Download Hyperliquid funding for the coins shared with the Binance archive
+- [ ] Run the pair backtest and explain the result to the user
+
 ## Phase 1: paper mode on live data
 
 Goal: the bot runs around the clock on live prices without real money, and the whole

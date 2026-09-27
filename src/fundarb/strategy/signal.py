@@ -32,8 +32,10 @@ def evaluate_instrument(
         or inst.perp_volume_24h_usd < params.min_24h_volume_usd
     ):
         reasons.append("volume_below_min")
+    tolerance = 1e-6  # bid/ask arithmetic noise must not fail an exact limit
     if cost_model.assumed_spread_bps is None and (
-        inst.spot_spread_bps > params.max_spread_bps or inst.perp_spread_bps > params.max_spread_bps
+        inst.spot_spread_bps > params.max_spread_bps + tolerance
+        or inst.perp_spread_bps > params.max_spread_bps + tolerance
     ):
         reasons.append("spread_too_wide")
 

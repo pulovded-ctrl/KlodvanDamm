@@ -54,6 +54,9 @@ def data_sync(
     strategy_path: StrategyOpt = DEFAULT_STRATEGY_PATH,
     max_symbols: Annotated[int | None, typer.Option(help="How many coins to download")] = None,
     bases: Annotated[list[str] | None, typer.Option("--base", help="Only these coins")] = None,
+    bases_from_venue: Annotated[
+        str | None, typer.Option(help="Only coins already downloaded for this venue")
+    ] = None,
 ) -> None:
     """Download or update funding-rate and candle history."""
     from fundarb.exchanges.factory import history_adapter
@@ -63,6 +66,12 @@ def data_sync(
     settings, params = _load(settings_path, strategy_path)
     store = ParquetStore(settings.data.dir, settings.exchange.id, settings.data.timeframe)
     adapter = history_adapter(settings)
+    if bases_from_venue:
+        other = ParquetStore(settings.data.dir, bases_from_venue, settings.data.timeframe)
+        bases = sorted(set(bases or []) | set(other.load_instruments()))
+        if not bases:
+            typer.echo(f"No coins downloaded yet for venue {bases_from_venue}.")
+            raise typer.Exit(code=EXIT_NO_DATA)
 
     async def _run() -> int:
         try:
@@ -132,6 +141,12 @@ def backtest(
     from fundarb.marketdata.store import ParquetStore
 
     settings, params = _load(settings_path, strategy_path)
+    if settings.pair is not None:
+        _backtest_pair(settings, params, jobs, no_walk_forward, start, end)
+        return
+    if params.long_leg != "spot":
+        typer.echo("strategy.long_leg is perp but settings have no pair section.")
+        raise typer.Exit(code=EXIT_NO_DATA)
     store = ParquetStore(settings.data.dir, settings.exchange.id, settings.data.timeframe)
     dataset = build_dataset(store, bases)
     if not dataset.coins:
@@ -176,6 +191,101 @@ def backtest(
             settings=params.backtest,
             exchange_note=settings.exchange.note,
             funding_env=funding_environment(dataset),
+            mode="spot long + perp short",
+        ),
+        settings.reports_dir,
+    )
+    headline = wf.oos_metrics if wf is not None and wf.oos_metrics is not None else default_metrics
+    kind = "out-of-sample" if wf is not None and wf.oos_metrics is not None else "in-sample"
+    typer.echo(
+        f"Result ({kind}): {headline.total_return * 100:.1f}% over the period, "
+        f"{headline.annual_return * 100:.1f}% annualised, "
+        f"max drawdown {headline.max_drawdown * 100:.1f}%, trades {headline.trades}."
+    )
+    typer.echo(
+        f"Report: {paths.latest_markdown} (copy {paths.markdown.name}), chart {paths.latest_png}"
+    )
+
+
+def _backtest_pair(
+    settings: Settings,
+    params: StrategyParams,
+    jobs: int,
+    no_walk_forward: bool,
+    start: str | None,
+    end: str | None,
+) -> None:
+    """Cross-venue perp-perp study: same strategy, pair dataset and pair engine."""
+    from fundarb.backtest.data import funding_environment
+    from fundarb.backtest.metrics import compute_metrics
+    from fundarb.backtest.pair_data import build_pair_dataset
+    from fundarb.backtest.pair_engine import (
+        PairEngine,
+        fee_schedule_for_pair,
+        pair_engine_factory,
+    )
+    from fundarb.backtest.report import ReportInputs, write_report
+    from fundarb.backtest.walkforward import run_walk_forward
+    from fundarb.marketdata.store import ParquetStore
+
+    pair = settings.pair
+    assert pair is not None
+    if params.long_leg != "perp":
+        typer.echo(
+            "Pair mode needs a strategy file with long_leg: perp (config/strategy.pair.yaml)."
+        )
+        raise typer.Exit(code=EXIT_NO_DATA)
+    stores = {
+        venue: ParquetStore(settings.data.dir, venue, settings.data.timeframe)
+        for venue in pair.venues
+    }
+    dataset = build_pair_dataset(stores, pair)
+    if not dataset.pairs:
+        typer.echo(
+            "No data for the pair backtest: download history for both venues first "
+            f"({', '.join(pair.venues)})."
+        )
+        for warning in dataset.coverage.warnings[:20]:
+            typer.echo(f"  {warning}")
+        raise typer.Exit(code=EXIT_NO_DATA)
+    start_dt, end_dt = _parse_dt(start), _parse_dt(end)
+    start_idx = dataset.index_of(start_dt) if start_dt else 0
+    end_idx = dataset.index_of(end_dt) if end_dt else len(dataset)
+    if end_idx <= start_idx:
+        typer.echo("End of the period is before its start, or outside the data.")
+        raise typer.Exit(code=EXIT_NO_DATA)
+    workers = jobs if jobs > 0 else (os.cpu_count() or 1)
+    fees = fee_schedule_for_pair(pair)
+    typer.echo(
+        f"Pairs: {len(dataset.pairs)} ({len(dataset.pairs) // 2} coins, both directions), "
+        f"hours: {end_idx - start_idx}, "
+        f"{dataset.ts(start_idx):%Y-%m-%d} to {dataset.ts(end_idx - 1):%Y-%m-%d}."
+    )
+    typer.echo("Running with default parameters...")
+    default_result = PairEngine(dataset, params, fees, params.backtest, pair).run(
+        start_idx, end_idx
+    )
+    default_metrics = compute_metrics(default_result)
+    wf = None
+    if not no_walk_forward:
+        typer.echo(f"Walk-forward on {workers} processes...")
+        wf = run_walk_forward(
+            dataset, params, fees, params.backtest,
+            jobs=workers, start_idx=start_idx, end_idx=end_idx, factory=pair_engine_factory(pair),
+        )  # fmt: skip
+    paths = write_report(
+        ReportInputs(
+            exchange=" + ".join(pair.venues),
+            coverage=dataset.coverage,
+            default_result=default_result,
+            default_metrics=default_metrics,
+            walk_forward=wf,
+            params=params,
+            fees=fees,
+            settings=params.backtest,
+            exchange_note=settings.exchange.note,
+            funding_env=funding_environment(dataset),
+            mode="cross-venue perp-perp (long one venue, short the other)",
         ),
         settings.reports_dir,
     )

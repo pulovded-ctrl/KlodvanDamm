@@ -140,3 +140,56 @@ def test_cli_live_is_locked(monkeypatch: pytest.MonkeyPatch) -> None:
     res = runner.invoke(app, ["live", "--live"], input=LIVE_CONFIRMATION_PHRASE + "\n")
     assert res.exit_code == EXIT_NOT_IMPLEMENTED  # gate open, phase 2 not built yet
     assert os.environ["LIVE_TRADING"] == "true"
+
+
+def test_cli_pair_backtest(tmp_path: Path, start_dt: datetime) -> None:
+    from helpers import synthetic_venue_store
+
+    root = tmp_path / "data"
+    synthetic_venue_store(root, "va", start_dt, days=45, funding_rate=lambda _b, _t: 0.0002)
+    synthetic_venue_store(
+        root,
+        "vb",
+        start_dt,
+        days=45,
+        funding_interval_hours=1.0,
+        funding_rate=lambda _b, _t: 0.0001,
+        perp_only=True,
+    )
+    settings_src = (ROOT / "config" / "settings.pair.yaml").read_text(encoding="utf-8")
+    settings_src = settings_src.replace("dir: data", f"dir: {root}").replace(
+        "reports_dir: reports", f"reports_dir: {tmp_path / 'reports'}"
+    )
+    settings_src = settings_src.replace("venues: [binance_vision, hyperliquid]", "venues: [va, vb]")
+    settings_src = settings_src.replace("price_venue: binance_vision", "price_venue: va")
+    settings_src = settings_src.replace("    binance_vision: {", "    va: {").replace(
+        "    hyperliquid: {", "    vb: {"
+    )
+    settings_path = tmp_path / "settings.pair.yaml"
+    settings_path.write_text(settings_src, encoding="utf-8")
+    strategy_src = (ROOT / "config" / "strategy.pair.yaml").read_text(encoding="utf-8")
+    strategy_path = tmp_path / "strategy.pair.yaml"
+    strategy_path.write_text(
+        strategy_src.replace("min_24h_volume_usd: 5000000", "min_24h_volume_usd: 1000000"),
+        encoding="utf-8",
+    )
+    res = runner.invoke(
+        app,
+        ["backtest", "--settings", str(settings_path), "--strategy", str(strategy_path),
+         "--no-walk-forward", "--jobs", "1"],
+    )  # fmt: skip
+    assert res.exit_code == 0, res.output
+    assert "Pairs: 2 (1 coins, both directions)" in res.output
+    text = (tmp_path / "reports" / "latest.md").read_text(encoding="utf-8")
+    assert "cross-venue perp-perp" in text and "BTC:va>vb" in text
+    # spot strategy file against pair settings is refused
+    bad = runner.invoke(app, ["backtest", "--settings", str(settings_path), "--jobs", "1"])
+    assert bad.exit_code == EXIT_NO_DATA and "long_leg: perp" in bad.output
+
+
+def test_cli_data_sync_bases_from_venue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _write_settings(tmp_path)
+    res = runner.invoke(
+        app, ["data", "sync", "--settings", str(settings), "--bases-from-venue", "nothing"]
+    )
+    assert res.exit_code == EXIT_NO_DATA and "No coins downloaded yet" in res.output

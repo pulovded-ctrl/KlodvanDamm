@@ -24,10 +24,12 @@ from fundarb.marketdata.store import ParquetStore
 HOUR_MS = 3_600_000
 
 
-def make_rules(base: str = "BTC", funding_interval_hours: float = 8.0) -> InstrumentRules:
+def make_rules(
+    base: str = "BTC", funding_interval_hours: float = 8.0, perp_only: bool = False
+) -> InstrumentRules:
     return InstrumentRules(
         base=base,
-        spot_symbol=f"{base}/USDT",
+        spot_symbol="" if perp_only else f"{base}/USDT",
         perp_symbol=f"{base}/USDT:USDT",
         spot_amount_step=0.000001,
         spot_min_amount=0.00001,
@@ -168,6 +170,38 @@ def synthetic_store(
         volume=volume,
     )
     store = ParquetStore(root, "fake")
+    sync = HistorySync(adapter, store, start=start, now_ms=lambda: ms(end))
+    result = asyncio.run(sync.sync_all())
+    assert result.ok, result.errors
+    return store
+
+
+def synthetic_venue_store(
+    root: Path,
+    venue: str,
+    start: datetime,
+    days: int,
+    bases: Sequence[str] = ("BTC",),
+    *,
+    funding_interval_hours: float = 8.0,
+    funding_rate: Callable[[str, int], float] | None = None,
+    price: Callable[[str, int], float] | None = None,
+    volume: float = 100_000.0,
+    perp_only: bool = False,
+) -> ParquetStore:
+    """A perp venue store (optionally without spot) for cross-venue pair tests."""
+    rules = {b: make_rules(b, funding_interval_hours, perp_only=perp_only) for b in bases}
+    end = start + timedelta(days=days)
+    adapter = FakeAdapter(
+        rules,
+        start_ms=ms(start),
+        end_ms=ms(end),
+        funding_rate=funding_rate,
+        price=price,
+        volume=volume,
+    )
+    adapter.name = venue
+    store = ParquetStore(root, venue)
     sync = HistorySync(adapter, store, start=start, now_ms=lambda: ms(end))
     result = asyncio.run(sync.sync_all())
     assert result.ok, result.errors

@@ -40,3 +40,11 @@ backtest-archive: data-archive
 	uv run fundarb backtest --settings config/settings.binance_vision.yaml
 
 .PHONY: data-archive backtest-archive
+
+data-hyperliquid:
+	uv run fundarb data sync --settings config/settings.hyperliquid.yaml --bases-from-venue binance_vision
+
+backtest-pair:
+	uv run fundarb backtest --settings config/settings.pair.yaml --strategy config/strategy.pair.yaml
+
+.PHONY: data-hyperliquid backtest-pair

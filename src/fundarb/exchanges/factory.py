@@ -15,6 +15,10 @@ def history_adapter(settings: Settings) -> ExchangeAdapter:
 
         cache = Path(settings.data.dir) / exchange_id / "raw"
         return BinanceVisionAdapter(cache, timeframe=settings.data.timeframe)
+    if exchange_id == "hyperliquid":
+        from fundarb.exchanges.hyperliquid_info import HyperliquidInfoAdapter
+
+        return HyperliquidInfoAdapter()
     from fundarb.exchanges.ccxt_adapter import CcxtAdapter
 
     return CcxtAdapter(exchange_id, testnet=settings.exchange.testnet)

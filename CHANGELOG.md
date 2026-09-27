@@ -16,3 +16,5 @@
 - Cash reserve for margin top-ups, spread and slippage reported separately, funding-environment section in the report, default holding horizon 90 periods, stablecoins blacklisted.
 - First real-data backtest (Binance archive, 60 coins, 2024-01 to 2026-08): report in `reports/latest.md`.
 - Interface and repository switched to English.
+- Cross-venue perp-perp study: Hyperliquid history adapter, pair dataset (both directions per coin, net spread per period), pair engine with per-venue cash and margin on both legs, pair mode in `fundarb backtest`, `config/settings.pair.yaml`, `config/strategy.pair.yaml`, targets `make data-hyperliquid` and `make backtest-pair`.
+- History sync downloads coins concurrently; adapters can set page sizes.

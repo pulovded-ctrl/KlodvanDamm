@@ -1,0 +1,41 @@
+# Cross-venue perp-perp study: long a perpetual on one venue, short the same perpetual on the
+# other, earn the difference in funding. Funding history: Binance public archive and the
+# Hyperliquid info API. Prices for both legs: Binance perp candles (venue basis not modelled).
+mode: paper
+
+exchange:
+  id: pair
+  testnet: false
+  unified_account: false
+  note: "Binance archive (funding, prices) plus Hyperliquid info API (funding). Venue basis is not modelled; fees are each venue's public base tier."
+
+fees:                      # not used in pair mode; the per-venue fees below apply
+  spot_maker_bps: 2.0
+  spot_taker_bps: 5.0
+  perp_maker_bps: 1.5
+  perp_taker_bps: 4.5
+
+data:
+  dir: data
+  timeframe: 1h
+  history_start: "2024-01-01"
+  max_symbols: 60
+
+reports_dir: reports
+ledger_db: data/ledger.sqlite
+
+telegram:
+  enabled: false
+
+log:
+  level: INFO
+  json_output: true
+
+pair:
+  venues: [binance_vision, hyperliquid]
+  price_venue: binance_vision
+  fees:
+    binance_vision: {maker_bps: 2.0, taker_bps: 5.0, assumed_spread_bps: 5.0}  # Binance USDT-M, VIP 0
+    hyperliquid: {maker_bps: 1.5, taker_bps: 4.5, assumed_spread_bps: 5.0}     # Hyperliquid base tier
+  period_hours: 8
+  venue_rebalance_hours: 24

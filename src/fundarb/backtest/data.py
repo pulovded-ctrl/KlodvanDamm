@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
+from typing import Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -131,8 +132,8 @@ def build_dataset(
     n = len(index_ms)
     coins: dict[str, CoinSeries] = {}
     for base, (rules, spot, perp, funding) in raw.items():
-        spot_close, spot_vol = _align(index_ms, spot, tf_ms)
-        perp_close, perp_vol = _align(index_ms, perp, tf_ms)
+        spot_close, spot_vol = align_candles(index_ms, spot, tf_ms)
+        perp_close, perp_vol = align_candles(index_ms, perp, tf_ms)
         f_ts = funding["ts_ms"].to_numpy(dtype=np.int64)
         f_rate = funding["rate"].to_numpy(dtype=np.float64)
         f_idx = (f_ts - lo) // tf_ms
@@ -195,7 +196,9 @@ def build_dataset(
     return BacktestDataset(index_ms, tf_ms, coins, coverage)
 
 
-def _align(index_ms: IntArray, df: pd.DataFrame, tf_ms: int) -> tuple[FloatArray, FloatArray]:
+def align_candles(
+    index_ms: IntArray, df: pd.DataFrame, tf_ms: int
+) -> tuple[FloatArray, FloatArray]:
     ts = df["ts_ms"].to_numpy(dtype=np.int64)
     close = df["close"].to_numpy(dtype=np.float64)
     volume = df["volume"].to_numpy(dtype=np.float64)
@@ -235,7 +238,17 @@ class FundingEnv:
     share_negative: float
 
 
-def funding_environment(dataset: BacktestDataset) -> list[FundingEnv]:
+class HasFunding(Protocol):
+    funding_rates: FloatArray
+    funding_gap_hours: FloatArray
+
+
+class HasCoins(Protocol):
+    @property
+    def coins(self) -> Mapping[str, HasFunding]: ...
+
+
+def funding_environment(dataset: HasCoins) -> list[FundingEnv]:
     """What the funding market looked like per coin: the context every result must be read in."""
     out: list[FundingEnv] = []
     for base, coin in sorted(dataset.coins.items()):

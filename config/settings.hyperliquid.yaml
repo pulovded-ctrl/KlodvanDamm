@@ -1,0 +1,32 @@
+# Hyperliquid, history only (funding rates), used as the second leg of the perp-perp study.
+# The info API needs no keys. Candles are only available for the last ~200 days, so long
+# backtests take prices from the other venue.
+mode: paper
+
+exchange:
+  id: hyperliquid
+  testnet: false
+  unified_account: false
+  note: "Hyperliquid funding from the public info API; prices for backtests come from Binance."
+
+fees:                      # Hyperliquid base tier; check your own tier
+  spot_maker_bps: 1.5
+  spot_taker_bps: 4.5
+  perp_maker_bps: 1.5
+  perp_taker_bps: 4.5
+
+data:
+  dir: data
+  timeframe: 1h
+  history_start: "2024-01-01"
+  max_symbols: 250         # everything; the sync is restricted with --base to the coins on both venues
+
+reports_dir: reports
+ledger_db: data/ledger.sqlite
+
+telegram:
+  enabled: false
+
+log:
+  level: INFO
+  json_output: true

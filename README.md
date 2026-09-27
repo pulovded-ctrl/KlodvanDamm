@@ -45,6 +45,8 @@ Copy `.env.example` to `.env`. Phase 0 needs no keys, the history is public.
 | `make backtest` | Downloads Bybit history (only new data on repeat runs) and writes a report to `reports/` |
 | `make data` | Only download or update the history |
 | `make backtest-archive` | Same backtest on Binance's public archive, for when Bybit is unreachable from your network |
+| `make data-hyperliquid` | Download Hyperliquid funding history for the coins already downloaded from Binance |
+| `make backtest-pair` | Cross-venue study: long a perp on Binance, short it on Hyperliquid or the reverse, earn the funding difference |
 | `make test` | Run the tests |
 | `make lint` | Lint and type-check the code |
 | `make paper`, `make live`, `make status`, `make flatten` | Phases 1 and 2, not implemented yet |

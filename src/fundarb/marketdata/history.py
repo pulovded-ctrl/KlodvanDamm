@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -57,8 +58,9 @@ class HistorySync:
         self.max_symbols = max_symbols
         self.min_volume_usd = min_volume_usd
         self._now_ms = now_ms or (lambda: int(time.time() * 1000))
-        self.funding_page = funding_page
-        self.ohlcv_page = ohlcv_page
+        # adapters that know their own page sizes win over the defaults
+        self.funding_page = int(getattr(adapter, "funding_page_size", funding_page))
+        self.ohlcv_page = int(getattr(adapter, "ohlcv_page_size", ohlcv_page))
         self.max_pages = max_pages
 
     # --- universe ----------------------------------------------------------------------------
@@ -84,6 +86,7 @@ class HistorySync:
                 "universe_rule": "top by min(spot, perp) 24h volume at selection time",
                 "history_start_ms": self.start_ms,
                 "bases": sorted(chosen),
+                "volumes_24h_usd": {b: list(volumes[b]) for b in sorted(chosen)},
             }
         )
         return chosen
@@ -138,22 +141,33 @@ class HistorySync:
         rules_by_base: Mapping[str, InstrumentRules] | None = None,
         bases: Sequence[str] | None = None,
         progress: Callable[[str], None] | None = None,
+        concurrency: int = 4,
     ) -> SyncResult:
+        """Sync every selected coin; ``concurrency`` coins are downloaded at the same time.
+        Adapters keep their own rate limits, so this only overlaps network latency."""
         result = SyncResult()
         universe = rules_by_base if rules_by_base is not None else await self.select_universe()
         selected = [b for b in sorted(universe) if bases is None or b in bases]
         result.bases = selected
-        for base in selected:
+        gate = asyncio.Semaphore(max(1, concurrency))
+
+        async def one(base: str) -> None:
             rules = universe[base]
-            if progress:
-                progress(base)
-            try:
-                result.funding_rows[base] = await self.sync_funding(rules)
-                result.spot_rows[base] = await self.sync_ohlcv("spot", rules)
-                result.perp_rows[base] = await self.sync_ohlcv("perp", rules)
-            except Exception as exc:  # one bad symbol must not stop the others
-                result.errors[base] = f"{type(exc).__name__}: {exc}"
-                log.warning("history_sync_failed", base=base, error=result.errors[base])
+            async with gate:
+                if progress:
+                    progress(base)
+                try:
+                    result.funding_rows[base] = await self.sync_funding(rules)
+                    if rules.spot_symbol:  # perp-only venues have no spot leg
+                        result.spot_rows[base] = await self.sync_ohlcv("spot", rules)
+                    else:
+                        result.spot_rows[base] = 0
+                    result.perp_rows[base] = await self.sync_ohlcv("perp", rules)
+                except Exception as exc:  # one bad symbol must not stop the others
+                    result.errors[base] = f"{type(exc).__name__}: {exc}"
+                    log.warning("history_sync_failed", base=base, error=result.errors[base])
+
+        await asyncio.gather(*(one(b) for b in selected))
         result.finished_at = datetime.now(UTC)
         meta = self.store.load_meta()
         meta["last_sync_at"] = result.finished_at.isoformat()

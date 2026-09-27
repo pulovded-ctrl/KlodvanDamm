@@ -8,7 +8,13 @@ from fundarb.strategy.costs import CostModel
 
 
 def capital_per_notional(params: StrategyParams) -> float:
-    """USD of capital consumed per 1 USD of hedged notional: spot cash plus perp margin."""
+    """USD of capital consumed per 1 USD of hedged notional.
+
+    Spot long + perp short: the whole spot notional plus the perp margin.
+    Perp long + perp short (cross-venue): margin on both legs.
+    """
+    if params.long_leg == "perp":
+        return 2.0 / params.max_leverage_perp
     return 1.0 + 1.0 / params.max_leverage_perp
 
 

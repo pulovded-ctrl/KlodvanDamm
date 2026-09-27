@@ -64,6 +64,28 @@ class LogSettings(_Strict):
     json_output: bool = True
 
 
+class VenueFees(_Strict):
+    maker_bps: float = Field(ge=0)
+    taker_bps: float = Field(ge=0)
+    assumed_spread_bps: float = Field(default=5.0, ge=0)  # no order-book history in backtests
+
+
+class PairSettings(_Strict):
+    """Cross-venue perp-perp study: long a perp on one venue, short the same perp on the other."""
+
+    venues: list[str] = Field(min_length=2, max_length=2)
+    fees: dict[str, VenueFees]
+    price_venue: str  # venue whose perp candles price both legs
+    capital_split: dict[str, float] | None = None  # share of capital per venue, equal if omitted
+    period_hours: int = Field(default=8, ge=1)  # funding spreads are summed per period
+    venue_rebalance_hours: int = Field(default=24, ge=1)  # cash equalised between venues
+
+    def split_for(self, venue: str) -> float:
+        if self.capital_split is None:
+            return 1.0 / len(self.venues)
+        return self.capital_split[venue]
+
+
 class Settings(_Strict):
     mode: Literal["paper", "live"] = "paper"
     exchange: ExchangeSettings = ExchangeSettings()
@@ -73,6 +95,7 @@ class Settings(_Strict):
     ledger_db: Path = Path("data/ledger.sqlite")
     telegram: TelegramSettings = TelegramSettings()
     log: LogSettings = LogSettings()
+    pair: PairSettings | None = None
 
 
 class ErrorBreaker(_Strict):
@@ -132,6 +155,7 @@ class StrategyParams(_Strict):
     max_leverage_perp: float = Field(gt=0)
     min_liq_distance_pct: float = Field(ge=0)
     cash_reserve_pct: float = Field(default=15.0, ge=0, le=90)  # kept free for margin top-ups
+    long_leg: Literal["spot", "perp"] = "spot"  # perp = cross-venue perp-perp pair
     stale_data_sec: float = Field(gt=0)
     daily_dd_hard_stop_pct: float = Field(gt=0, le=100)
     reconcile_interval_sec: int = Field(ge=1)
@@ -156,7 +180,17 @@ def _read_yaml(path: Path) -> dict[str, object]:
 
 
 def load_settings(path: Path = DEFAULT_SETTINGS_PATH) -> Settings:
-    return Settings.model_validate(_read_yaml(path))
+    settings = Settings.model_validate(_read_yaml(path))
+    pair = settings.pair
+    if pair is not None:
+        missing = [v for v in pair.venues if v not in pair.fees]
+        if missing:
+            raise ValueError(f"pair.fees missing for venues: {missing}")
+        if pair.price_venue not in pair.venues:
+            raise ValueError("pair.price_venue must be one of pair.venues")
+        if pair.capital_split is not None and set(pair.capital_split) != set(pair.venues):
+            raise ValueError("pair.capital_split must name exactly the pair venues")
+    return settings
 
 
 def load_strategy(path: Path = DEFAULT_STRATEGY_PATH) -> StrategyParams:
