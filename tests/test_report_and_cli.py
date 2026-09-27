@@ -104,7 +104,7 @@ def test_cli_data_sync_connection_failure(tmp_path: Path, monkeypatch: pytest.Mo
         async def connect(self) -> None:
             raise ConnectionError("blocked")
 
-    monkeypatch.setattr(mod, "CcxtAdapter", Broken)
+    monkeypatch.setattr(mod, "CcxtAdapter", Broken)  # the factory imports it lazily
     settings = _write_settings(tmp_path)
     res = runner.invoke(app, ["data", "sync", "--settings", str(settings)])
     assert res.exit_code == EXIT_NO_DATA

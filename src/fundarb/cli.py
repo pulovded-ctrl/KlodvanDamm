@@ -55,13 +55,13 @@ def data_sync(
     bases: Annotated[list[str] | None, typer.Option("--base", help="Только эти монеты")] = None,
 ) -> None:
     """Скачать или докачать историю фандинга и свечей."""
-    from fundarb.exchanges.ccxt_adapter import CcxtAdapter
+    from fundarb.exchanges.factory import history_adapter
     from fundarb.marketdata.history import HistorySync
     from fundarb.marketdata.store import ParquetStore
 
     settings, params = _load(settings_path, strategy_path)
     store = ParquetStore(settings.data.dir, settings.exchange.id, settings.data.timeframe)
-    adapter = CcxtAdapter(settings.exchange.id, testnet=settings.exchange.testnet)
+    adapter = history_adapter(settings)
 
     async def _run() -> int:
         try:
@@ -70,7 +70,7 @@ def data_sync(
             typer.echo(
                 f"Не удалось подключиться к бирже {settings.exchange.id}: "
                 f"{type(exc).__name__}: {exc}\n"
-                "Проверьте интернет и доступ к api.bybit.com."
+                "Проверьте интернет и доступ к API биржи."
             )
             return EXIT_NO_DATA
         try:
@@ -170,6 +170,7 @@ def backtest(
             params=params,
             fees=settings.fees,
             settings=params.backtest,
+            exchange_note=settings.exchange.note,
         ),
         settings.reports_dir,
     )

@@ -71,7 +71,8 @@ class CcxtAdapter(ExchangeAdapter):
 
     async def connect(self) -> None:
         cls = getattr(ccxt, self.name)
-        options: dict[str, Any] = {"enableRateLimit": True}
+        # aiohttp_trust_env: honour HTTPS_PROXY / SSL_CERT_FILE like every other tool does
+        options: dict[str, Any] = {"enableRateLimit": True, "aiohttp_trust_env": True}
         if self._api_key and self._api_secret:
             options["apiKey"] = self._api_key
             options["secret"] = self._api_secret

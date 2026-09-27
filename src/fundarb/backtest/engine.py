@@ -233,7 +233,7 @@ class BacktestEngine:
                 continue
             spot24, perp24 = self._vol24[base]
             instruments[base] = InstrumentSnapshot(
-                rules=coin.rules,
+                rules=coin.rules_at(i, span),
                 funding_history=coin.history_upto(i, span).tolist(),
                 funding_seq=int(coin.funding_count_at[i]),
                 predicted_funding=None,  # not known without look-ahead; see DECISIONS.md

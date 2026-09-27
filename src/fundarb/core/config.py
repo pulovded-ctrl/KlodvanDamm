@@ -21,6 +21,7 @@ class ExchangeSettings(_Strict):
     id: str = "bybit"
     testnet: bool = False
     unified_account: bool = True
+    note: str = ""  # free text shown in reports, e.g. "archive data used as a proxy"
 
 
 class FeeSchedule(_Strict):

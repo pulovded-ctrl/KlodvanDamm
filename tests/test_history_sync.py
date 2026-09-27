@@ -48,7 +48,7 @@ async def test_full_then_incremental_sync(tmp_path: Path, start_dt: datetime) ->
     assert result.spot_rows["BTC"] == expected_candles
     assert result.perp_rows["BTC"] == expected_candles
     funding_calls = [c for c in adapter.calls if c[0] == "funding"]
-    assert len(funding_calls) == 7  # 301 rows / 50 per page -> 7 calls, last one short
+    assert len(funding_calls) == 8  # 301 rows / 50 per page -> 7 pages plus one empty page
     # the current, still-open hour must not be stored
     last_ts = store.last_ohlcv_ts("spot", "BTC")
     assert last_ts is not None

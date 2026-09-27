@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
 import numpy as np
@@ -28,10 +28,25 @@ class CoinSeries:
     funding_rate_at: FloatArray  # NaN except at bars where funding settles
     funding_rates: FloatArray  # settled rates in time order
     funding_count_at: IntArray  # number of settled fundings up to and including bar i
+    funding_gap_hours: FloatArray  # hours since the previous settlement, per settlement
 
     def history_upto(self, i: int, span: int) -> FloatArray:
         count = int(self.funding_count_at[i])
         return self.funding_rates[max(0, count - span) : count]
+
+    def interval_upto(self, i: int, span: int) -> float:
+        """Funding interval in force at bar i: median gap of the last ``span`` settlements."""
+        count = int(self.funding_count_at[i])
+        if count == 0:
+            return self.rules.funding_interval_hours
+        gaps = self.funding_gap_hours[max(0, count - span) : count]
+        return float(np.median(gaps))
+
+    def rules_at(self, i: int, span: int) -> InstrumentRules:
+        interval = self.interval_upto(i, span)
+        if interval == self.rules.funding_interval_hours:
+            return self.rules
+        return replace(self.rules, funding_interval_hours=interval)
 
 
 @dataclass(slots=True)
@@ -126,6 +141,18 @@ def build_dataset(
         rate_at = np.full(n, np.nan)
         rate_at[f_idx] = f_rate
         count_at = np.cumsum(~np.isnan(rate_at)).astype(np.int64)
+        f_ts_kept = f_ts[keep]
+        gaps = np.full(len(f_ts_kept), rules.funding_interval_hours, dtype=np.float64)
+        if len(f_ts_kept) > 1:
+            gaps[1:] = np.diff(f_ts_kept) / 3_600_000.0
+            gaps[0] = gaps[1]
+        if len(f_ts_kept) >= 10:
+            typical = float(np.median(gaps))
+            if abs(typical - rules.funding_interval_hours) > 0.25 * rules.funding_interval_hours:
+                coverage.warnings.append(
+                    f"{base}: интервал фандинга по данным {typical:g} ч, "
+                    f"в справочнике {rules.funding_interval_hours:g} ч; беру из данных"
+                )
         valid = ~np.isnan(spot_close) & ~np.isnan(perp_close)
         bars = int(valid.sum())
         if bars < min_bars:
@@ -148,6 +175,7 @@ def build_dataset(
             funding_rate_at=rate_at,
             funding_rates=f_rate,
             funding_count_at=count_at,
+            funding_gap_hours=gaps,
         )
         coverage.coins.append(
             CoinCoverage(

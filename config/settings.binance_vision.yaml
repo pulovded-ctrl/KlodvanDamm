@@ -1,0 +1,33 @@
+# Backtest on Binance's public archive (data.binance.vision) as a PROXY for Bybit history.
+# Use when api.bybit.com is unreachable from where the backtest runs. Fees stay Bybit's, because
+# Bybit is the venue the bot will trade on. Funding rates differ between venues: treat results as
+# an approximation, not a Bybit result.
+mode: paper
+
+exchange:
+  id: binance_vision
+  testnet: false
+  unified_account: true
+  note: "Данные из публичного архива Binance как замена Bybit. Ставки фандинга на Bybit отличаются."
+
+fees:
+  spot_maker_bps: 10.0
+  spot_taker_bps: 10.0
+  perp_maker_bps: 2.0
+  perp_taker_bps: 5.5
+
+data:
+  dir: data
+  timeframe: 1h
+  history_start: "2024-01-01"
+  max_symbols: 60
+
+reports_dir: reports
+ledger_db: data/ledger.sqlite
+
+telegram:
+  enabled: false
+
+log:
+  level: INFO
+  json_output: true

@@ -147,3 +147,28 @@ def test_run_window_and_end_close(
     assert all(t.closed_at <= dataset.ts(24 * 20 - 1) for t in result.trades)
     empty = engine.run(start_idx=100, end_idx=50)
     assert empty.equity.empty and empty.trades == []
+
+
+def test_funding_interval_inferred_from_data(tmp_path: Path, start_dt: datetime) -> None:
+    from fundarb.backtest.data import build_dataset
+    from fundarb.marketdata.store import ParquetStore
+    from helpers import make_rules
+
+    # reference says 8h but the data settles every 4h
+    synthetic_store(tmp_path, start_dt, days=20, funding_rate=lambda _b, _t: 0.001)
+    store = ParquetStore(tmp_path, "fake")
+    rules = make_rules("BTC", funding_interval_hours=8.0)
+    from fundarb.core.models import FundingRecord
+
+    four_hourly = [
+        FundingRecord(ts_ms=int(start_dt.timestamp() * 1000) + k * 4 * 3_600_000, rate=0.001)
+        for k in range(20 * 6)
+    ]
+    store.append_funding("BTC", four_hourly)
+    store.save_instruments({"BTC": rules})
+    dataset = build_dataset(store, min_bars=24)
+    assert any("интервал фандинга" in w for w in dataset.coverage.warnings)
+    coin = dataset.coins["BTC"]
+    assert coin.interval_upto(len(dataset) - 1, 6) == 4.0
+    assert coin.rules_at(len(dataset) - 1, 6).funding_interval_hours == 4.0
+    assert coin.rules_at(0, 6).funding_interval_hours in (4.0, 8.0)

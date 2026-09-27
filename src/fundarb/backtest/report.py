@@ -51,6 +51,7 @@ class ReportInputs:
     fees: FeeSchedule
     settings: BacktestSettings
     generated_at: datetime | None = None
+    exchange_note: str = ""
 
 
 def pct(value: float, digits: int = 1) -> str:
@@ -161,8 +162,10 @@ def _coverage_section(cov: DataCoverage) -> str:
 
 def _assumptions(inp: ReportInputs) -> str:
     s, f = inp.settings, inp.fees
+    note = [f"- **Источник данных: {inp.exchange_note}**"] if inp.exchange_note else []
     return "\n".join(
         [
+            *note,
             f"- Комиссии: спот maker {f.spot_maker_bps} bps, taker {f.spot_taker_bps} bps; "
             f"перп maker {f.perp_maker_bps} bps, taker {f.perp_taker_bps} bps. "
             "Проверьте свой тариф на бирже, по умолчанию стоят публичные ставки без VIP.",

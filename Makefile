@@ -32,3 +32,11 @@ flatten:
 	uv run fundarb flatten
 
 .PHONY: install lint format test data backtest paper live status flatten
+
+data-archive:
+	uv run fundarb data sync --settings config/settings.binance_vision.yaml
+
+backtest-archive: data-archive
+	uv run fundarb backtest --settings config/settings.binance_vision.yaml
+
+.PHONY: data-archive backtest-archive

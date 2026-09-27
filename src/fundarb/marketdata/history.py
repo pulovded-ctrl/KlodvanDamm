@@ -105,8 +105,6 @@ class HistorySync:
             if next_cursor <= cursor:
                 break
             cursor = next_cursor
-            if len(rows) < self.funding_page:
-                break
         return added
 
     # --- candles -----------------------------------------------------------------------------
@@ -132,8 +130,6 @@ class HistorySync:
             if next_cursor <= cursor:
                 break
             cursor = next_cursor
-            if len(candles) < self.ohlcv_page:
-                break
         return added
 
     # --- everything --------------------------------------------------------------------------
